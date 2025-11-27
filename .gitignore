@@ -72,7 +72,7 @@ $RECYCLE.BIN/
 # Environment Variables (Managed by GitHub Secrets)
 .env
 .env.*
-!.env.example
+.env-dev
 *.env
 
 # Logs
@@ -127,4 +127,3 @@ replay_pid*
 /test-results/
 /coverage/
 *.coverage
-*.example

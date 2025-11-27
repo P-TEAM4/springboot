@@ -1,12 +1,14 @@
 package com.lol.highlight.global.exception;
 
+import com.lol.highlight.global.common.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -17,52 +19,69 @@ import java.nio.file.AccessDeniedException;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    protected ResponseEntity<ErrorResponse> handleBusinessException(final BusinessException e) {
-        log.error("BusinessException", e);
+    protected ApiResponse<?> handleBusinessException(final BusinessException e, HttpServletRequest request) {
+        log.error("BusinessException: {}", e.getMessage(), e);
         final ErrorCode errorCode = e.getErrorCode();
-        final ErrorResponse response = ErrorResponse.of(errorCode);
-        return new ResponseEntity<>(response, errorCode.getStatus());
+        return ApiResponse.error(errorCode, request.getRequestURI());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    protected ApiResponse<?> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException e,
+            HttpServletRequest request) {
         log.error("MethodArgumentNotValidException", e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, e.getBindingResult());
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        String errorMessage = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();
+        return ApiResponse.error(
+                HttpStatus.BAD_REQUEST.value(),
+                ErrorCode.INVALID_INPUT_VALUE.getCode(),
+                errorMessage != null ? errorMessage : ErrorCode.INVALID_INPUT_VALUE.getMessage(),
+                request.getRequestURI()
+        );
     }
 
     @ExceptionHandler(BindException.class)
-    protected ResponseEntity<ErrorResponse> handleBindException(BindException e) {
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    protected ApiResponse<?> handleBindException(BindException e, HttpServletRequest request) {
         log.error("BindException", e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, e.getBindingResult());
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        String errorMessage = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();
+        return ApiResponse.error(
+                HttpStatus.BAD_REQUEST.value(),
+                ErrorCode.INVALID_INPUT_VALUE.getCode(),
+                errorMessage != null ? errorMessage : ErrorCode.INVALID_INPUT_VALUE.getMessage(),
+                request.getRequestURI()
+        );
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    protected ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    protected ApiResponse<?> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException e,
+            HttpServletRequest request) {
         log.error("MethodArgumentTypeMismatchException", e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_TYPE_VALUE);
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return ApiResponse.error(ErrorCode.INVALID_TYPE_VALUE, request.getRequestURI());
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    protected ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    protected ApiResponse<?> handleHttpRequestMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException e,
+            HttpServletRequest request) {
         log.error("HttpRequestMethodNotSupportedException", e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED);
-        return new ResponseEntity<>(response, HttpStatus.METHOD_NOT_ALLOWED);
+        return ApiResponse.error(ErrorCode.METHOD_NOT_ALLOWED, request.getRequestURI());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    protected ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e) {
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    protected ApiResponse<?> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
         log.error("AccessDeniedException", e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.ACCESS_DENIED);
-        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+        return ApiResponse.error(ErrorCode.ACCESS_DENIED, request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
-    protected ResponseEntity<ErrorResponse> handleException(Exception e) {
-        log.error("Exception", e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR);
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    protected ApiResponse<?> handleException(Exception e, HttpServletRequest request) {
+        log.error("Exception: {}", e.getMessage(), e);
+        return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, request.getRequestURI());
     }
 }
