@@ -9,6 +9,7 @@ import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
+import com.lol.highlight.global.service.FlaskIntegrationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -27,6 +28,7 @@ public class HighlightService {
 
     private final HighlightRepository highlightRepository;
     private final MatchRepository matchRepository;
+    private final FlaskIntegrationService flaskIntegrationService;
 
     public HighlightResponse getHighlightById(Long id) {
         Highlight highlight = highlightRepository.findById(id)
@@ -64,7 +66,8 @@ public class HighlightService {
 
         highlight = highlightRepository.save(highlight);
 
-        // TODO: 비동기로 AI 서버에 하이라이트 영상 생성 요청
+        // 비동기로 AI 서버에 하이라이트 영상 생성 요청
+        flaskIntegrationService.generateHighlightsAsync(match, List.of(highlight));
         log.info("Highlight creation initiated for match: {}", request.getMatchId());
 
         return HighlightResponse.from(highlight);
@@ -75,7 +78,8 @@ public class HighlightService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
-        // TODO: AI 서버를 통해 자동으로 하이라이트 추출
+        // AI 서버를 통해 자동으로 하이라이트 추출
+        flaskIntegrationService.generateAutoHighlightsAsync(match);
         log.info("Auto highlight generation initiated for match: {}", matchId);
     }
 

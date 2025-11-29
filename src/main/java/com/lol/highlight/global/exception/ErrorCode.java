@@ -15,6 +15,7 @@ public enum ErrorCode {
     ENTITY_NOT_FOUND(HttpStatus.NOT_FOUND, "C004", "Entity not found"),
     INVALID_TYPE_VALUE(HttpStatus.BAD_REQUEST, "C005", "Invalid type value"),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "C006", "Access is denied"),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "C007", "Resource not found"),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "User not found"),
@@ -38,6 +39,7 @@ public enum ErrorCode {
     // Auth
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH001", "Unauthorized"),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH002", "Invalid token"),
+    TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH003", "Token has expired"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH003", "Expired token"),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH004", "Refresh token not found");
 

@@ -48,13 +48,13 @@ public class UserService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // TODO: Riot API를 통해 실제 계정 검증 필요
-        String riotId = request.getSummonerName() + "#" + request.getTagLine();
 
-        if (userRepository.existsByRiotId(riotId)) {
+        if (userRepository.existsBySummonerNameAndTagLine(request.getSummonerName(), request.getTagLine())) {
             throw new BusinessException(ErrorCode.EMAIL_DUPLICATION, "This Riot account is already linked to another user");
         }
 
-        user.linkRiotAccount(riotId, request.getSummonerName(), request.getTagLine());
+        // riotPuuid는 Riot API 호출 후 받아와야 함 (임시로 null)
+        user.linkRiotAccount(null, request.getSummonerName(), request.getTagLine());
 
         return UserResponse.from(user);
     }

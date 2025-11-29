@@ -26,4 +26,6 @@ public interface HighlightRepository extends JpaRepository<Highlight, Long> {
 
     @Query("SELECT h FROM Highlight h WHERE h.match.user.id = :userId AND h.status = :status")
     List<Highlight> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") HighlightStatus status);
+
+    boolean existsByMatchId(Long matchId);
 }

@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
 
+    // 기본 정보
     @Column(nullable = false, unique = true)
     private String email;
 
@@ -21,31 +22,34 @@ public class User extends BaseEntity {
 
     private String profileImage;
 
+    // Riot 계정 정보
     @Column(unique = true)
-    private String riotId;
+    private String riotPuuid;  // Riot PUUID (고유 식별자)
 
-    private String summonerName;
+    private String summonerName;  // 소환사명 (예: Hide on bush)
 
-    private String tagLine;
+    private String tagLine;  // 태그라인 (예: KR1)
 
+    // OAuth2 정보
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AuthProvider provider;
+    private AuthProvider provider;  // OAuth2 제공자 (GOOGLE, KAKAO 등)
 
-    private String providerId;
+    private String providerId;  // OAuth2 제공자의 고유 ID
 
+    // 권한
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
 
     @Builder
-    public User(String email, String name, String profileImage, String riotId,
-                String summonerName, String tagLine, AuthProvider provider,
-                String providerId, UserRole role) {
+    public User(String email, String name, String profileImage,
+                String riotPuuid, String summonerName, String tagLine,
+                AuthProvider provider, String providerId, UserRole role) {
         this.email = email;
         this.name = name;
         this.profileImage = profileImage;
-        this.riotId = riotId;
+        this.riotPuuid = riotPuuid;
         this.summonerName = summonerName;
         this.tagLine = tagLine;
         this.provider = provider;
@@ -58,9 +62,17 @@ public class User extends BaseEntity {
         this.profileImage = profileImage;
     }
 
-    public void linkRiotAccount(String riotId, String summonerName, String tagLine) {
-        this.riotId = riotId;
+    public void linkRiotAccount(String riotPuuid, String summonerName, String tagLine) {
+        this.riotPuuid = riotPuuid;
         this.summonerName = summonerName;
         this.tagLine = tagLine;
+    }
+
+    // Riot ID 포맷: summonerName#tagLine
+    public String getRiotId() {
+        if (summonerName != null && tagLine != null) {
+            return summonerName + "#" + tagLine;
+        }
+        return null;
     }
 }

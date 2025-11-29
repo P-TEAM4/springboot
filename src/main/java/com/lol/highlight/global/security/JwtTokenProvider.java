@@ -9,45 +9,71 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
 public class JwtTokenProvider {
 
     private final SecretKey key;
-    private final long tokenValidityInMilliseconds;
+    private final long accessTokenValidityInMilliseconds;
+    private final long refreshTokenValidityInMilliseconds;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration}") long tokenValidityInMilliseconds) {
+            @Value("${jwt.access-token-validity}") long accessTokenValidityInMilliseconds,
+            @Value("${jwt.refresh-token-validity}") long refreshTokenValidityInMilliseconds) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.tokenValidityInMilliseconds = tokenValidityInMilliseconds;
+        this.accessTokenValidityInMilliseconds = accessTokenValidityInMilliseconds;
+        this.refreshTokenValidityInMilliseconds = refreshTokenValidityInMilliseconds;
     }
 
-    public String createToken(Authentication authentication) {
+    public String createAccessToken(Authentication authentication) {
         String username = authentication.getName();
         Date now = new Date();
-        Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
+        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
 
         return Jwts.builder()
                 .subject(username)
+                .claim("type", "access")
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key)
                 .compact();
     }
 
-    public String createToken(String email) {
+    public String createAccessToken(String email) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
+        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
 
         return Jwts.builder()
                 .subject(email)
+                .claim("type", "access")
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key)
                 .compact();
+    }
+
+    public String createRefreshToken(String email) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + refreshTokenValidityInMilliseconds);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("type", "refresh")
+                .claim("tokenId", UUID.randomUUID().toString())
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(key)
+                .compact();
+    }
+
+    public LocalDateTime getRefreshTokenExpiryDate() {
+        return LocalDateTime.now().plusSeconds(refreshTokenValidityInMilliseconds / 1000);
     }
 
     public String getUsernameFromToken(String token) {
@@ -71,5 +97,32 @@ public class JwtTokenProvider {
             log.error("Invalid JWT token: {}", e.getMessage());
             return false;
         }
+    }
+
+    public Date getExpirationDateFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.getExpiration();
+    }
+
+    public LocalDateTime getExpirationAsLocalDateTime(String token) {
+        Date expiration = getExpirationDateFromToken(token);
+        return expiration.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+    }
+
+    public String getTokenType(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.get("type", String.class);
     }
 }

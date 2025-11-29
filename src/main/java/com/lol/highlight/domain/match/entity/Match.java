@@ -8,8 +8,17 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 매치 엔티티
+ * - 모든 조회된 매치를 영구 저장 (TTL 없음)
+ * - 필요한 최소한의 정보만 저장 (timelineData 제외)
+ * - timelineData는 분석 시에만 별도로 조회/저장
+ */
 @Entity
-@Table(name = "matches")
+@Table(name = "matches", indexes = {
+        @Index(name = "idx_match_id", columnList = "matchId"),
+        @Index(name = "idx_user_game_creation", columnList = "user_id, gameCreation")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Match extends BaseEntity {
@@ -41,14 +50,10 @@ public class Match extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private MatchStatus status;
 
-    @Column(columnDefinition = "TEXT")
-    private String timelineData;
-
     @Builder
     public Match(User user, String matchId, String championName, Integer kills,
                 Integer deaths, Integer assists, Double kda, Boolean win,
-                Integer gameDuration, Long gameCreation, MatchStatus status,
-                String timelineData) {
+                Integer gameDuration, Long gameCreation, MatchStatus status) {
         this.user = user;
         this.matchId = matchId;
         this.championName = championName;
@@ -60,23 +65,6 @@ public class Match extends BaseEntity {
         this.gameDuration = gameDuration;
         this.gameCreation = gameCreation;
         this.status = status != null ? status : MatchStatus.PENDING;
-        this.timelineData = timelineData;
-    }
-
-    public void updateMatchData(String championName, Integer kills, Integer deaths,
-                               Integer assists, Double kda, Boolean win,
-                               Integer gameDuration, Long gameCreation,
-                               String timelineData) {
-        this.championName = championName;
-        this.kills = kills;
-        this.deaths = deaths;
-        this.assists = assists;
-        this.kda = kda;
-        this.win = win;
-        this.gameDuration = gameDuration;
-        this.gameCreation = gameCreation;
-        this.timelineData = timelineData;
-        this.status = MatchStatus.COMPLETED;
     }
 
     public void updateStatus(MatchStatus status) {

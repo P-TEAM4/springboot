@@ -15,7 +15,6 @@ class UserTest {
                 .email("test@example.com")
                 .name("Test User")
                 .profileImage("https://example.com/profile.jpg")
-                .riotId("testUser#KR1")
                 .summonerName("TestSummoner")
                 .tagLine("KR1")
                 .provider(AuthProvider.GOOGLE)
@@ -62,10 +61,10 @@ class UserTest {
                 .build();
 
         // when
-        user.linkRiotAccount("newRiot#KR1", "NewSummoner", "KR1");
+        user.linkRiotAccount("riot-puuid-123", "NewSummoner", "KR1");
 
         // then
-        assertThat(user.getRiotId()).isEqualTo("newRiot#KR1");
+        assertThat(user.getRiotPuuid()).isEqualTo("riot-puuid-123");
         assertThat(user.getSummonerName()).isEqualTo("NewSummoner");
         assertThat(user.getTagLine()).isEqualTo("KR1");
     }

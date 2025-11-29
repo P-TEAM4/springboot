@@ -220,7 +220,12 @@ Analysis Report ← Spring Boot ← AI Analysis Result
 **AI Server API 사용**:
 - POST `/api/v1/analyze/match`: 단일 경기 분석
 - POST `/api/v1/analyze/gap`: Gap 분석 (티어 베이스라인 비교)
-- POST `/api/v1/highlight/detect`: 하이라이트 이벤트 감지
+- POST `/api/v1/suggest-tier`: 티어 추천
+
+**비동기 연동**:
+- Flask AI 서버와의 모든 통신은 `@Async` 비동기 방식으로 처리
+- 사용자는 즉시 `PENDING` 상태 응답을 받고, 백그라운드에서 처리
+- 자세한 내용은 [통합 가이드](../docs/INTEGRATION_GUIDE.md) 참고
 
 ## 프로젝트 구조
 
@@ -252,8 +257,13 @@ src/main/java/com/lol/highlight/
 │       ├── controller/    # AnalysisController
 │       └── dto/           # AnalysisResponse, AnalysisCreateRequest, etc.
 └── global/                # 글로벌 설정 및 공통 기능
-    ├── config/           # SecurityConfig, WebConfig
+    ├── client/           # 외부 API 클라이언트
+    │   ├── dto/         # FlaskMatchAnalysisRequest, RiotMatchResponse, etc.
+    │   ├── FlaskApiClient.java
+    │   └── RiotApiClient.java
+    ├── config/           # SecurityConfig, WebConfig, AsyncConfig, RestTemplateConfig
     ├── security/         # JwtTokenProvider, JwtAuthenticationFilter, OAuth2AuthenticationSuccessHandler
+    ├── service/          # FlaskIntegrationService, RiotApiService (비동기 통합)
     ├── exception/        # ErrorCode, BusinessException, GlobalExceptionHandler
     └── common/           # BaseEntity
 ```
@@ -281,22 +291,7 @@ cp .env.example .env
 # .env 파일 수정
 ```
 
-**필수 환경 변수**:
-```bash
-# Google OAuth2
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-
-# JWT Secret (256-bit 이상)
-JWT_SECRET=your-256-bit-secret-key-for-development-only
-
-# Database (프로덕션)
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=lol_highlight
-DB_USERNAME=postgres
-DB_PASSWORD=password
-```
+**자세한 환경 변수 설정 가이드는 [환경 설정 문서](../docs/ENVIRONMENT_SETUP.md)를 참고하세요.**
 
 #### GitHub Secrets 설정 (프로덕션)
 
@@ -312,6 +307,14 @@ DB_PASSWORD=password
 - `DB_PASSWORD`
 
 **주의**: `.env` 파일은 절대 커밋하지 마세요. `.gitignore`에 등록되어 있습니다.
+
+## 문서
+
+- **[API 명세서](docs/SPRING_BOOT_API.md)**: Spring Boot REST API 전체 엔드포인트 문서
+- **[아키텍처](docs/ARCHITECTURE.md)**: 시스템 아키텍처 및 설계 문서
+- **[환경 설정](../docs/ENVIRONMENT_SETUP.md)**: 환경 변수 설정 가이드
+- **[통합 가이드](../docs/INTEGRATION_GUIDE.md)**: Flask AI 서버 연동 가이드
+- **[전체 API 명세](../docs/API_SPECIFICATION.md)**: Spring Boot + Flask AI 통합 API 명세
 
 ### 실행 방법
 

@@ -42,7 +42,26 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-for-development-only-please-change-in-production}
-  expiration: 86400000
+  access-token-validity: 3600000  # 1시간 (1000 * 60 * 60)
+  refresh-token-validity: 604800000  # 7일 (1000 * 60 * 60 * 24 * 7)
+
+# OAuth2 리다이렉트 URI
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
+
+# Flask AI Server 설정
+flask:
+  api:
+    base-url: ${FLASK_API_URL:http://localhost:8000}
+    timeout: 30000
+    connection-timeout: 5000
+
+# Riot API 설정
+riot:
+  api:
+    key: ${RIOT_API_KEY:your-riot-api-key}
+    base-url: https://developer.riotgames.com
 
 server:
   port: 8080

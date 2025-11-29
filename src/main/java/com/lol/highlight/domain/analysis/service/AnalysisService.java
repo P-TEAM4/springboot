@@ -9,6 +9,7 @@ import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
+import com.lol.highlight.global.service.FlaskIntegrationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,7 @@ public class AnalysisService {
 
     private final AnalysisRepository analysisRepository;
     private final MatchRepository matchRepository;
+    private final FlaskIntegrationService flaskIntegrationService;
 
     public AnalysisResponse getAnalysisById(Long id) {
         Analysis analysis = analysisRepository.findById(id)
@@ -58,7 +60,8 @@ public class AnalysisService {
 
         analysis = analysisRepository.save(analysis);
 
-        // TODO: 비동기로 AI 서버에 분석 요청
+        // 비동기로 AI 서버에 분석 요청
+        flaskIntegrationService.processAnalysisAsync(analysis, match);
         log.info("Analysis creation initiated for match: {}", request.getMatchId());
 
         return AnalysisResponse.from(analysis);
@@ -78,7 +81,8 @@ public class AnalysisService {
 
         analysis.updateStatus(AnalysisStatus.PENDING);
 
-        // TODO: 비동기로 AI 서버에 재분석 요청
+        // 비동기로 AI 서버에 재분석 요청
+        flaskIntegrationService.processAnalysisAsync(analysis, analysis.getMatch());
         log.info("Analysis regeneration initiated for analysis: {}", id);
 
         return AnalysisResponse.from(analysis);

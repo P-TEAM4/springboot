@@ -40,7 +40,6 @@ class MatchTest {
                 .gameDuration(1800)
                 .gameCreation(System.currentTimeMillis())
                 .status(MatchStatus.COMPLETED)
-                .timelineData("{}")
                 .build();
 
         // then
@@ -54,36 +53,27 @@ class MatchTest {
     }
 
     @Test
-    @DisplayName("매치 데이터 업데이트 성공")
-    void updateMatchDataSuccess() {
+    @DisplayName("매치 상태 변경 성공")
+    void changeMatchStatusSuccess() {
         // given
         Match match = Match.builder()
                 .user(user)
                 .matchId("KR_123456789")
                 .championName("Ahri")
+                .kills(10)
+                .deaths(2)
+                .assists(15)
+                .kda(12.5)
+                .win(true)
+                .gameDuration(1800)
+                .gameCreation(System.currentTimeMillis())
                 .status(MatchStatus.PENDING)
                 .build();
 
         // when
-        match.updateMatchData(
-                "Zed",
-                15,
-                5,
-                8,
-                4.6,
-                false,
-                2100,
-                System.currentTimeMillis(),
-                "{}"
-        );
+        match.updateStatus(MatchStatus.COMPLETED);
 
         // then
-        assertThat(match.getChampionName()).isEqualTo("Zed");
-        assertThat(match.getKills()).isEqualTo(15);
-        assertThat(match.getDeaths()).isEqualTo(5);
-        assertThat(match.getAssists()).isEqualTo(8);
-        assertThat(match.getKda()).isEqualTo(4.6);
-        assertThat(match.getWin()).isFalse();
         assertThat(match.getStatus()).isEqualTo(MatchStatus.COMPLETED);
     }
 

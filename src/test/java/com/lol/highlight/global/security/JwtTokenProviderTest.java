@@ -19,22 +19,23 @@ class JwtTokenProviderTest {
 
     private JwtTokenProvider jwtTokenProvider;
     private String testSecret = "test-secret-key-for-jwt-token-provider-test-minimum-32-characters";
-    private long tokenValidityInMilliseconds = 3600000; // 1 hour
+    private long accessTokenValidityInMilliseconds = 3600000; // 1 hour
+    private long refreshTokenValidityInMilliseconds = 86400000; // 24 hours
 
     @BeforeEach
     void setUp() {
-        jwtTokenProvider = new JwtTokenProvider(testSecret, tokenValidityInMilliseconds);
+        jwtTokenProvider = new JwtTokenProvider(testSecret, accessTokenValidityInMilliseconds, refreshTokenValidityInMilliseconds);
     }
 
     @Test
-    @DisplayName("Authentication으로 JWT 토큰 생성 성공")
-    void createTokenWithAuthenticationSuccess() {
+    @DisplayName("Authentication으로 Access Token 생성 성공")
+    void createAccessTokenWithAuthenticationSuccess() {
         // given
         Authentication authentication = mock(Authentication.class);
         given(authentication.getName()).willReturn("test@example.com");
 
         // when
-        String token = jwtTokenProvider.createToken(authentication);
+        String token = jwtTokenProvider.createAccessToken(authentication);
 
         // then
         assertThat(token).isNotNull();
@@ -42,13 +43,13 @@ class JwtTokenProviderTest {
     }
 
     @Test
-    @DisplayName("이메일로 JWT 토큰 생성 성공")
-    void createTokenWithEmailSuccess() {
+    @DisplayName("이메일로 Access Token 생성 성공")
+    void createAccessTokenWithEmailSuccess() {
         // given
         String email = "test@example.com";
 
         // when
-        String token = jwtTokenProvider.createToken(email);
+        String token = jwtTokenProvider.createAccessToken(email);
 
         // then
         assertThat(token).isNotNull();
@@ -60,7 +61,7 @@ class JwtTokenProviderTest {
     void getUsernameFromTokenSuccess() {
         // given
         String email = "test@example.com";
-        String token = jwtTokenProvider.createToken(email);
+        String token = jwtTokenProvider.createAccessToken(email);
 
         // when
         String extractedEmail = jwtTokenProvider.getUsernameFromToken(token);
@@ -74,7 +75,7 @@ class JwtTokenProviderTest {
     void validateTokenSuccess() {
         // given
         String email = "test@example.com";
-        String token = jwtTokenProvider.createToken(email);
+        String token = jwtTokenProvider.createAccessToken(email);
 
         // when
         boolean isValid = jwtTokenProvider.validateToken(token);
@@ -100,8 +101,8 @@ class JwtTokenProviderTest {
     @DisplayName("만료된 JWT 토큰 검증 실패")
     void validateExpiredTokenFail() {
         // given - create expired token
-        JwtTokenProvider expiredTokenProvider = new JwtTokenProvider(testSecret, -1000); // negative expiration
-        String expiredToken = expiredTokenProvider.createToken("test@example.com");
+        JwtTokenProvider expiredTokenProvider = new JwtTokenProvider(testSecret, -1000, refreshTokenValidityInMilliseconds);
+        String expiredToken = expiredTokenProvider.createAccessToken("test@example.com");
 
         // when
         boolean isValid = jwtTokenProvider.validateToken(expiredToken);
@@ -115,7 +116,7 @@ class JwtTokenProviderTest {
     void verifyTokenClaims() {
         // given
         String email = "test@example.com";
-        String token = jwtTokenProvider.createToken(email);
+        String token = jwtTokenProvider.createAccessToken(email);
 
         // when
         SecretKey key = Keys.hmacShaKeyFor(testSecret.getBytes(StandardCharsets.UTF_8));
@@ -138,8 +139,8 @@ class JwtTokenProviderTest {
     void validateTokenWithDifferentSecretFail() {
         // given
         String differentSecret = "different-secret-key-for-jwt-token-test-minimum-32-characters-long";
-        JwtTokenProvider differentProvider = new JwtTokenProvider(differentSecret, tokenValidityInMilliseconds);
-        String token = differentProvider.createToken("test@example.com");
+        JwtTokenProvider differentProvider = new JwtTokenProvider(differentSecret, accessTokenValidityInMilliseconds, refreshTokenValidityInMilliseconds);
+        String token = differentProvider.createAccessToken("test@example.com");
 
         // when
         boolean isValid = jwtTokenProvider.validateToken(token);

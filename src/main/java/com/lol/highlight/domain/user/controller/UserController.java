@@ -5,12 +5,11 @@ import com.lol.highlight.domain.user.dto.UserResponse;
 import com.lol.highlight.domain.user.dto.UserUpdateRequest;
 import com.lol.highlight.domain.user.service.UserService;
 import com.lol.highlight.global.common.ApiResponse;
+import com.lol.highlight.global.config.SwaggerConfig.ApiErrorExamples;
+import com.lol.highlight.global.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -25,14 +24,7 @@ public class UserController {
     private final UserService userService;
 
     @Operation(summary = "현재 로그인한 사용자 정보 조회", description = "JWT 토큰을 통해 현재 로그인한 사용자의 정보를 조회합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
-    })
+    @ApiErrorExamples({ErrorCode.UNAUTHORIZED})
     @GetMapping("/me")
     public ApiResponse<UserResponse> getCurrentUser(Authentication authentication) {
         String email = authentication.getName();
@@ -41,14 +33,7 @@ public class UserController {
     }
 
     @Operation(summary = "사용자 정보 조회", description = "사용자 ID로 특정 사용자의 정보를 조회합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
-    })
+    @ApiErrorExamples({ErrorCode.USER_NOT_FOUND})
     @GetMapping("/{id}")
     public ApiResponse<UserResponse> getUser(
             @Parameter(description = "사용자 ID", required = true) @PathVariable Long id) {
@@ -57,15 +42,7 @@ public class UserController {
     }
 
     @Operation(summary = "사용자 정보 수정", description = "사용자의 프로필 정보를 수정합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "수정 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
-    })
+    @ApiErrorExamples({ErrorCode.USER_NOT_FOUND, ErrorCode.INVALID_INPUT_VALUE})
     @PutMapping("/{id}")
     public ApiResponse<UserResponse> updateUser(
             @Parameter(description = "사용자 ID", required = true) @PathVariable Long id,
@@ -75,15 +52,7 @@ public class UserController {
     }
 
     @Operation(summary = "Riot 계정 연동", description = "사용자의 Riot 계정을 연동합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "연동 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 연동된 계정")
-    })
+    @ApiErrorExamples({ErrorCode.USER_NOT_FOUND, ErrorCode.SUMMONER_NOT_FOUND})
     @PostMapping("/{id}/link-riot")
     public ApiResponse<UserResponse> linkRiotAccount(
             @Parameter(description = "사용자 ID", required = true) @PathVariable Long id,
@@ -93,14 +62,7 @@ public class UserController {
     }
 
     @Operation(summary = "사용자 삭제", description = "사용자 계정을 삭제합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "삭제 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
-    })
+    @ApiErrorExamples({ErrorCode.USER_NOT_FOUND})
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteUser(
             @Parameter(description = "사용자 ID", required = true) @PathVariable Long id) {
