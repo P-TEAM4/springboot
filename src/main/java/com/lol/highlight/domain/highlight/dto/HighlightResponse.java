@@ -1,8 +1,8 @@
 package com.lol.highlight.domain.highlight.dto;
 
 import com.lol.highlight.domain.highlight.entity.Highlight;
-import com.lol.highlight.domain.highlight.entity.HighlightStatus;
-import com.lol.highlight.domain.highlight.entity.HighlightType;
+import com.lol.highlight.domain.highlight.enums.HighlightStatus;
+import com.lol.highlight.domain.highlight.enums.HighlightType;
 import lombok.Builder;
 import lombok.Getter;
 

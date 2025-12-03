@@ -1,8 +1,8 @@
-package com.lol.highlight.domain.user.service;
+package com.lol.highlight.global.auth.oauth2;
 
-import com.lol.highlight.domain.user.entity.AuthProvider;
 import com.lol.highlight.domain.user.entity.User;
-import com.lol.highlight.domain.user.entity.UserRole;
+import com.lol.highlight.domain.user.enums.AuthProvider;
+import com.lol.highlight.domain.user.enums.UserRole;
 import com.lol.highlight.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -3,7 +3,7 @@ package com.lol.highlight.domain.analysis.service;
 import com.lol.highlight.domain.analysis.dto.AnalysisCreateRequest;
 import com.lol.highlight.domain.analysis.dto.AnalysisResponse;
 import com.lol.highlight.domain.analysis.entity.Analysis;
-import com.lol.highlight.domain.analysis.entity.AnalysisStatus;
+import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.analysis.repository.AnalysisRepository;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;

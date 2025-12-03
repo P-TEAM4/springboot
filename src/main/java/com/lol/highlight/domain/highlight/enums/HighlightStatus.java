@@ -1,4 +1,4 @@
-package com.lol.highlight.domain.highlight.entity;
+package com.lol.highlight.domain.highlight.enums;
 
 public enum HighlightStatus {
     PENDING,

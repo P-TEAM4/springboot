@@ -3,7 +3,7 @@ package com.lol.highlight.domain.match.service;
 import com.lol.highlight.domain.match.dto.MatchImportRequest;
 import com.lol.highlight.domain.match.dto.MatchResponse;
 import com.lol.highlight.domain.match.entity.Match;
-import com.lol.highlight.domain.match.entity.MatchStatus;
+import com.lol.highlight.domain.match.enums.MatchStatus;
 import com.lol.highlight.domain.match.repository.MatchRepository;
 import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.domain.user.repository.UserRepository;

@@ -1,6 +1,6 @@
 package com.lol.highlight.domain.highlight.dto;
 
-import com.lol.highlight.domain.highlight.entity.HighlightType;
+import com.lol.highlight.domain.highlight.enums.HighlightType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

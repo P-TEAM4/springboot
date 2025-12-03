@@ -1,5 +1,6 @@
-package com.lol.highlight.global.security;
+package com.lol.highlight.global.auth.filter;
 
+import com.lol.highlight.global.auth.jwt.JwtTokenProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

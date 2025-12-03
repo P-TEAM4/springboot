@@ -1,5 +1,7 @@
 package com.lol.highlight.domain.highlight.entity;
 
+import com.lol.highlight.domain.highlight.enums.HighlightStatus;
+import com.lol.highlight.domain.highlight.enums.HighlightType;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.global.common.BaseEntity;
 import jakarta.persistence.*;
