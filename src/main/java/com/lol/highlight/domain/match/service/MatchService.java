@@ -16,9 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,14 +34,6 @@ public class MatchService {
     public Page<MatchResponse> getUserMatches(Long userId, Pageable pageable) {
         return matchRepository.findByUserId(userId, pageable)
                 .map(MatchResponse::from);
-    }
-
-    public List<MatchResponse> getRecentMatches(Long userId, int count) {
-        List<Match> matches = matchRepository.findTop20ByUserIdOrderByGameCreationDesc(userId);
-        return matches.stream()
-                .limit(count)
-                .map(MatchResponse::from)
-                .collect(Collectors.toList());
     }
 
     @Transactional

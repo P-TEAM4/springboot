@@ -20,6 +20,4 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findByUserIdAndStatus(Long userId, MatchStatus status);
 
     boolean existsByMatchId(String matchId);
-
-    List<Match> findTop20ByUserIdOrderByGameCreationDesc(Long userId);
 }
