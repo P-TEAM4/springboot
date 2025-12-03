@@ -4,17 +4,15 @@ import com.lol.highlight.domain.analysis.dto.AnalysisCreateRequest;
 import com.lol.highlight.domain.analysis.dto.AnalysisResponse;
 import com.lol.highlight.domain.analysis.service.AnalysisService;
 import com.lol.highlight.global.common.ApiResponse;
+import com.lol.highlight.global.common.annotation.ApiErrorExamples;
+import com.lol.highlight.global.exception.enums.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Analysis", description = "경기 분석 API")
@@ -25,18 +23,10 @@ public class AnalysisController {
 
     private final AnalysisService analysisService;
 
-    @Operation(
-            summary = "분석 정보 조회",
-            description = "분석 ID로 특정 분석의 상세 정보를 조회합니다."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = AnalysisResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "분석을 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    @Operation(summary = "분석 정보 조회", description = "분석 ID로 특정 분석의 상세 정보를 조회합니다.")
+    @ApiErrorExamples({
+            ErrorCode.ANALYSIS_NOT_FOUND,
+            ErrorCode.AUTHENTICATION_REQUIRED
     })
     @GetMapping("/{id}")
     public ApiResponse<AnalysisResponse> getAnalysis(
@@ -45,18 +35,11 @@ public class AnalysisController {
         return ApiResponse.success(analysis);
     }
 
-    @Operation(
-            summary = "매치의 분석 조회",
-            description = "특정 매치에 대한 분석 정보를 조회합니다."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = AnalysisResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "매치 또는 분석을 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    @Operation(summary = "매치의 분석 조회", description = "특정 매치에 대한 분석 정보를 조회합니다.")
+    @ApiErrorExamples({
+            ErrorCode.MATCH_NOT_FOUND,
+            ErrorCode.ANALYSIS_NOT_FOUND,
+            ErrorCode.AUTHENTICATION_REQUIRED
     })
     @GetMapping("/match/{matchId}")
     public ApiResponse<AnalysisResponse> getAnalysisByMatch(
@@ -65,18 +48,10 @@ public class AnalysisController {
         return ApiResponse.success(analysis);
     }
 
-    @Operation(
-            summary = "사용자의 분석 목록 조회",
-            description = "특정 사용자의 모든 경기 분석을 페이징하여 조회합니다."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = Page.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    @Operation(summary = "사용자의 분석 목록 조회", description = "특정 사용자의 모든 경기 분석을 페이징하여 조회합니다.")
+    @ApiErrorExamples({
+            ErrorCode.USER_NOT_FOUND,
+            ErrorCode.AUTHENTICATION_REQUIRED
     })
     @GetMapping("/user/{userId}")
     public ApiResponse<Page<AnalysisResponse>> getUserAnalyses(
@@ -86,19 +61,12 @@ public class AnalysisController {
         return ApiResponse.success(analyses);
     }
 
-    @Operation(
-            summary = "경기 분석 생성",
-            description = "새로운 경기 분석을 생성합니다."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "생성 성공",
-                    content = @Content(schema = @Schema(implementation = AnalysisResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "매치를 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 또는 이미 존재하는 분석"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    @Operation(summary = "경기 분석 생성", description = "새로운 경기 분석을 생성합니다.")
+    @ApiErrorExamples({
+            ErrorCode.MATCH_NOT_FOUND,
+            ErrorCode.INVALID_INPUT_VALUE,
+            ErrorCode.REQUIRED_FIELD_MISSING,
+            ErrorCode.AUTHENTICATION_REQUIRED
     })
     @PostMapping
     public ApiResponse<AnalysisResponse> createAnalysis(
@@ -107,19 +75,12 @@ public class AnalysisController {
         return ApiResponse.success(analysis);
     }
 
-    @Operation(
-            summary = "AI 분석 재생성",
-            description = "기존 분석을 AI를 통해 다시 생성합니다. (비동기 처리)"
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "202",
-                    description = "재생성 요청 접수",
-                    content = @Content(schema = @Schema(implementation = AnalysisResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "분석을 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "매치 데이터 불충분"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    @Operation(summary = "AI 분석 재생성", description = "기존 분석을 AI를 통해 다시 생성합니다. (비동기 처리)")
+    @ApiErrorExamples({
+            ErrorCode.ANALYSIS_NOT_FOUND,
+            ErrorCode.INVALID_INPUT_VALUE,
+            ErrorCode.EXTERNAL_API_ERROR,
+            ErrorCode.AUTHENTICATION_REQUIRED
     })
     @PostMapping("/{id}/regenerate")
     public ApiResponse<AnalysisResponse> regenerateAnalysis(
@@ -128,14 +89,10 @@ public class AnalysisController {
         return ApiResponse.accepted("분석 재생성 요청이 접수되었습니다");
     }
 
-    @Operation(
-            summary = "분석 삭제",
-            description = "특정 경기 분석을 삭제합니다."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "분석을 찾을 수 없음"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    @Operation(summary = "분석 삭제", description = "특정 경기 분석을 삭제합니다.")
+    @ApiErrorExamples({
+            ErrorCode.ANALYSIS_NOT_FOUND,
+            ErrorCode.AUTHENTICATION_REQUIRED
     })
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteAnalysis(
