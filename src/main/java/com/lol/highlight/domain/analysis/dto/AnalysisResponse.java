@@ -1,7 +1,7 @@
 package com.lol.highlight.domain.analysis.dto;
 
 import com.lol.highlight.domain.analysis.entity.Analysis;
-import com.lol.highlight.domain.analysis.entity.AnalysisStatus;
+import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import lombok.Builder;
 import lombok.Getter;
 

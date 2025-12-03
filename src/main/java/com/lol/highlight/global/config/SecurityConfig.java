@@ -1,7 +1,7 @@
 package com.lol.highlight.global.config;
 
-import com.lol.highlight.global.security.JwtAuthenticationFilter;
-import com.lol.highlight.global.security.OAuth2AuthenticationSuccessHandler;
+import com.lol.highlight.global.auth.filter.JwtAuthenticationFilter;
+import com.lol.highlight.global.auth.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

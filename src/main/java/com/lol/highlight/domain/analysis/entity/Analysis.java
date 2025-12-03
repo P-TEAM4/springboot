@@ -1,5 +1,6 @@
 package com.lol.highlight.domain.analysis.entity;
 
+import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.global.common.BaseEntity;
 import jakarta.persistence.*;
