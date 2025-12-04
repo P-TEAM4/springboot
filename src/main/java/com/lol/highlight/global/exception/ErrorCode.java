@@ -15,6 +15,9 @@ public enum ErrorCode {
     ENTITY_NOT_FOUND(HttpStatus.NOT_FOUND, "C004", "Entity not found"),
     INVALID_TYPE_VALUE(HttpStatus.BAD_REQUEST, "C005", "Invalid type value"),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "C006", "Access is denied"),
+    REQUIRED_FIELD_MISSING(HttpStatus.BAD_REQUEST, "C007", "Required field is missing"),
+    EXTERNAL_API_ERROR(HttpStatus.BAD_GATEWAY, "C008", "External API error"),
+    AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "C009", "Authentication is required"),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "User not found"),

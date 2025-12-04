@@ -44,11 +44,13 @@ public class Match extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String timelineData;
 
+    private String detailDataUrl;
+
     @Builder
     public Match(User user, String matchId, String championName, Integer kills,
                 Integer deaths, Integer assists, Double kda, Boolean win,
                 Integer gameDuration, Long gameCreation, MatchStatus status,
-                String timelineData) {
+                String timelineData, String detailDataUrl) {
         this.user = user;
         this.matchId = matchId;
         this.championName = championName;
@@ -61,12 +63,13 @@ public class Match extends BaseEntity {
         this.gameCreation = gameCreation;
         this.status = status != null ? status : MatchStatus.PENDING;
         this.timelineData = timelineData;
+        this.detailDataUrl = detailDataUrl;
     }
 
     public void updateMatchData(String championName, Integer kills, Integer deaths,
                                Integer assists, Double kda, Boolean win,
                                Integer gameDuration, Long gameCreation,
-                               String timelineData) {
+                               String timelineData, String detailDataUrl) {
         this.championName = championName;
         this.kills = kills;
         this.deaths = deaths;
@@ -76,7 +79,12 @@ public class Match extends BaseEntity {
         this.gameDuration = gameDuration;
         this.gameCreation = gameCreation;
         this.timelineData = timelineData;
+        this.detailDataUrl = detailDataUrl;
         this.status = MatchStatus.COMPLETED;
+    }
+
+    public void updateDetailDataUrl(String detailDataUrl) {
+        this.detailDataUrl = detailDataUrl;
     }
 
     public void updateStatus(MatchStatus status) {
