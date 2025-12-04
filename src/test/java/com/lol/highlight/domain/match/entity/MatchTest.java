@@ -1,8 +1,9 @@
 package com.lol.highlight.domain.match.entity;
 
-import com.lol.highlight.domain.user.entity.AuthProvider;
+import com.lol.highlight.domain.match.enums.MatchStatus;
 import com.lol.highlight.domain.user.entity.User;
-import com.lol.highlight.domain.user.entity.UserRole;
+import com.lol.highlight.global.auth.enums.AuthProvider;
+import com.lol.highlight.domain.user.enums.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,7 +75,8 @@ class MatchTest {
                 false,
                 2100,
                 System.currentTimeMillis(),
-                "{}"
+                "{}",
+                null
         );
 
         // then

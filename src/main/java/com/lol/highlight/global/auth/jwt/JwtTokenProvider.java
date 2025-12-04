@@ -1,4 +1,4 @@
-package com.lol.highlight.global.security;
+package com.lol.highlight.global.auth.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -71,5 +71,15 @@ public class JwtTokenProvider {
             log.error("Invalid JWT token: {}", e.getMessage());
             return false;
         }
+    }
+
+    public Date getExpirationFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.getExpiration();
     }
 }

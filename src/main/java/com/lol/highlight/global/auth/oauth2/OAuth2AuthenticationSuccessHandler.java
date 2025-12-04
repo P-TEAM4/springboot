@@ -1,5 +1,6 @@
-package com.lol.highlight.global.security;
+package com.lol.highlight.global.auth.oauth2;
 
+import com.lol.highlight.global.auth.jwt.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

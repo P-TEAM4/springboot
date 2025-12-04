@@ -1,7 +1,7 @@
 package com.lol.highlight.domain.match.repository;
 
 import com.lol.highlight.domain.match.entity.Match;
-import com.lol.highlight.domain.match.entity.MatchStatus;
+import com.lol.highlight.domain.match.enums.MatchStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

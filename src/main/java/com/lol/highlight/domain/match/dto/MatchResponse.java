@@ -1,7 +1,7 @@
 package com.lol.highlight.domain.match.dto;
 
 import com.lol.highlight.domain.match.entity.Match;
-import com.lol.highlight.domain.match.entity.MatchStatus;
+import com.lol.highlight.domain.match.enums.MatchStatus;
 import lombok.Builder;
 import lombok.Getter;
 

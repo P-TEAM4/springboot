@@ -1,7 +1,7 @@
 package com.lol.highlight.domain.analysis.repository;
 
 import com.lol.highlight.domain.analysis.entity.Analysis;
-import com.lol.highlight.domain.analysis.entity.AnalysisStatus;
+import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

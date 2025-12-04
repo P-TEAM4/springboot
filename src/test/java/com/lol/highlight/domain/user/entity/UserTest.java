@@ -1,5 +1,7 @@
 package com.lol.highlight.domain.user.entity;
 
+import com.lol.highlight.global.auth.enums.AuthProvider;
+import com.lol.highlight.domain.user.enums.UserRole;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

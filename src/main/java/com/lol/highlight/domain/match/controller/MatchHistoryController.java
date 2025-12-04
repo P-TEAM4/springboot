@@ -57,6 +57,6 @@ public class MatchHistoryController {
     public ApiResponse<List<MatchResponse>> refreshMatches(
             @Parameter(description = "사용자 ID") @PathVariable Long userId) {
         List<MatchResponse> matches = matchHistoryService.refreshMatches(userId);
-        return ApiResponse.success(matches, "전적이 성공적으로 갱신되었습니다");
+        return ApiResponse.success("전적이 성공적으로 갱신되었습니다", matches);
     }
 }

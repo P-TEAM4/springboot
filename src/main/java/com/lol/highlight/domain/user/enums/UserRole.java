@@ -1,4 +1,4 @@
-package com.lol.highlight.domain.user.entity;
+package com.lol.highlight.domain.user.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
