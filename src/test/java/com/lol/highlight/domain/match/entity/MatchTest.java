@@ -75,7 +75,8 @@ class MatchTest {
                 false,
                 2100,
                 System.currentTimeMillis(),
-                "{}"
+                "{}",
+                null
         );
 
         // then
