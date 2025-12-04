@@ -1,4 +1,4 @@
-package com.lol.highlight.domain.match.entity;
+package com.lol.highlight.domain.match.enums;
 
 public enum MatchStatus {
     PENDING,

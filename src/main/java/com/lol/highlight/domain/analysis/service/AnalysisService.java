@@ -3,7 +3,7 @@ package com.lol.highlight.domain.analysis.service;
 import com.lol.highlight.domain.analysis.dto.AnalysisCreateRequest;
 import com.lol.highlight.domain.analysis.dto.AnalysisResponse;
 import com.lol.highlight.domain.analysis.entity.Analysis;
-import com.lol.highlight.domain.analysis.entity.AnalysisStatus;
+import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.analysis.repository.AnalysisRepository;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;
@@ -24,6 +24,7 @@ public class AnalysisService {
 
     private final AnalysisRepository analysisRepository;
     private final MatchRepository matchRepository;
+    private final AiAnalysisClient aiAnalysisClient;
 
     public AnalysisResponse getAnalysisById(Long id) {
         Analysis analysis = analysisRepository.findById(id)
@@ -58,10 +59,32 @@ public class AnalysisService {
 
         analysis = analysisRepository.save(analysis);
 
-        // TODO: 비동기로 AI 서버에 분석 요청
+        // 비동기로 AI 서버에 분석 요청
+        requestAiAnalysis(analysis.getId(), match);
         log.info("Analysis creation initiated for match: {}", request.getMatchId());
 
         return AnalysisResponse.from(analysis);
+    }
+
+    private void requestAiAnalysis(Long analysisId, Match match) {
+        // TODO: User 엔티티에 puuid와 tier 필드 추가 필요
+        // 현재는 matchId만으로 요청하며, AI 서버가 match 데이터로부터 puuid를 추출할 수 있어야 함
+        // 또는 Match 엔티티에 puuid 필드를 추가하거나, User 엔티티와의 관계를 통해 가져와야 함
+
+        String puuid = "TEMP_PUUID"; // TODO: match.getUser().getPuuid() 또는 match.getPuuid()로 변경
+        String tier = "GOLD"; // TODO: match.getUser().getTier()로 변경
+
+        com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest aiRequest =
+            com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest.builder()
+                .matchId(match.getMatchId())
+                .puuid(puuid)
+                .tier(tier)
+                .build();
+
+        aiAnalysisClient.requestGapAnalysis(analysisId, aiRequest);
+
+        // TODO: 두 번째 AI 엔드포인트 호출 (예: /api/v1/analyze/match)
+        // aiAnalysisClient.requestMatchAnalysis(analysisId, matchAnalysisRequest);
     }
 
     @Transactional

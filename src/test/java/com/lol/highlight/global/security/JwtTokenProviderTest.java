@@ -1,5 +1,6 @@
 package com.lol.highlight.global.security;
 
+import com.lol.highlight.global.auth.jwt.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;

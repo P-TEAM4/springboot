@@ -1,8 +1,8 @@
 package com.lol.highlight.domain.user.dto;
 
-import com.lol.highlight.domain.user.entity.AuthProvider;
 import com.lol.highlight.domain.user.entity.User;
-import com.lol.highlight.domain.user.entity.UserRole;
+import com.lol.highlight.global.auth.enums.AuthProvider;
+import com.lol.highlight.domain.user.enums.UserRole;
 import lombok.Builder;
 import lombok.Getter;
 
