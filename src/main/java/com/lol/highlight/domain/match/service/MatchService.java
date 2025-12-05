@@ -3,7 +3,7 @@ package com.lol.highlight.domain.match.service;
 import com.lol.highlight.domain.match.dto.MatchImportRequest;
 import com.lol.highlight.domain.match.dto.MatchResponse;
 import com.lol.highlight.domain.match.entity.Match;
-import com.lol.highlight.domain.match.entity.MatchStatus;
+import com.lol.highlight.domain.match.enums.MatchStatus;
 import com.lol.highlight.domain.match.repository.MatchRepository;
 import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.domain.user.repository.UserRepository;
@@ -15,9 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,14 +34,6 @@ public class MatchService {
     public Page<MatchResponse> getUserMatches(Long userId, Pageable pageable) {
         return matchRepository.findByUserId(userId, pageable)
                 .map(MatchResponse::from);
-    }
-
-    public List<MatchResponse> getRecentMatches(Long userId, int count) {
-        List<Match> matches = matchRepository.findTop20ByUserIdOrderByGameCreationDesc(userId);
-        return matches.stream()
-                .limit(count)
-                .map(MatchResponse::from)
-                .collect(Collectors.toList());
     }
 
     @Transactional

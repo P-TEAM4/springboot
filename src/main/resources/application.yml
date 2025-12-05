@@ -70,3 +70,9 @@ logging:
     com.lol: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
+
+# AI Server 설정
+ai:
+  server:
+    base-url: ${AI_SERVER_URL:http://localhost:8000}
+    timeout: 30000
