@@ -38,6 +38,7 @@ public class User extends BaseEntity {
 
     private String tier;
 
+    @Column(name = "league_rank")
     private String rank;
 
     private Integer leaguePoints;
