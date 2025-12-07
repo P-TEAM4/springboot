@@ -1,7 +1,6 @@
 package com.lol.highlight.domain.match.entity;
 
 import com.lol.highlight.domain.match.enums.MatchStatus;
-import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -10,14 +9,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "matches")
+@Table(name = "matches", indexes = {
+        @Index(name = "idx_puuid_game_creation", columnList = "puuid, gameCreation")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Match extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(nullable = false)
+    private String puuid;
 
     @Column(nullable = false, unique = true)
     private String matchId;
@@ -48,11 +48,11 @@ public class Match extends BaseEntity {
     private String detailDataUrl;
 
     @Builder
-    public Match(User user, String matchId, String championName, Integer kills,
+    public Match(String puuid, String matchId, String championName, Integer kills,
                 Integer deaths, Integer assists, Double kda, Boolean win,
                 Integer gameDuration, Long gameCreation, MatchStatus status,
                 String timelineData, String detailDataUrl) {
-        this.user = user;
+        this.puuid = puuid;
         this.matchId = matchId;
         this.championName = championName;
         this.kills = kills;

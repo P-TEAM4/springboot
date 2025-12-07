@@ -68,6 +68,9 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastMatchRefreshAt;
 
+    @Column(nullable = false)
+    private Integer refreshCountInWindow = 0;
+
     @Builder
     public User(String email, String name, String profileImage, String riotId,
                 String summonerName, String tagLine, AuthProvider provider,
@@ -102,11 +105,34 @@ public class User extends BaseEntity {
         this.lastMatchRefreshAt = LocalDateTime.now();
     }
 
-    public boolean canRefreshMatches() {
+    public boolean canRefreshMatches(int maxRefreshCount, int windowMinutes) {
+        LocalDateTime now = LocalDateTime.now();
+
         if (lastMatchRefreshAt == null) {
             return true;
         }
-        return LocalDateTime.now().isAfter(lastMatchRefreshAt.plusMinutes(3));
+
+        // 윈도우가 지났으면 리셋
+        if (now.isAfter(lastMatchRefreshAt.plusMinutes(windowMinutes))) {
+            return true;
+        }
+
+        // 윈도우 내: 횟수 체크
+        return refreshCountInWindow < maxRefreshCount;
+    }
+
+    public void recordRefresh(int windowMinutes) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // 새 윈도우 시작
+        if (lastMatchRefreshAt == null ||
+            now.isAfter(lastMatchRefreshAt.plusMinutes(windowMinutes))) {
+            this.refreshCountInWindow = 1;
+            this.lastMatchRefreshAt = now;
+        } else {
+            // 같은 윈도우 내: 카운트 증가
+            this.refreshCountInWindow++;
+        }
     }
 
     public void updateSummonerInfo(Integer profileIconId, Long summonerLevel,

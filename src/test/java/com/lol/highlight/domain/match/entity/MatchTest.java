@@ -1,10 +1,6 @@
 package com.lol.highlight.domain.match.entity;
 
 import com.lol.highlight.domain.match.enums.MatchStatus;
-import com.lol.highlight.domain.user.entity.User;
-import com.lol.highlight.global.auth.enums.AuthProvider;
-import com.lol.highlight.domain.user.enums.UserRole;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,25 +8,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MatchTest {
 
-    private User user;
-
-    @BeforeEach
-    void setUp() {
-        user = User.builder()
-                .email("test@example.com")
-                .name("Test User")
-                .provider(AuthProvider.GOOGLE)
-                .providerId("google123")
-                .role(UserRole.USER)
-                .build();
-    }
-
     @Test
     @DisplayName("Match 엔티티 생성 성공")
     void createMatchSuccess() {
         // given & when
         Match match = Match.builder()
-                .user(user)
+                .puuid("test-puuid-123")
                 .matchId("KR_123456789")
                 .championName("Ahri")
                 .kills(10)
@@ -59,7 +42,7 @@ class MatchTest {
     void updateMatchDataSuccess() {
         // given
         Match match = Match.builder()
-                .user(user)
+                .puuid("test-puuid-123")
                 .matchId("KR_123456789")
                 .championName("Ahri")
                 .status(MatchStatus.PENDING)
@@ -94,7 +77,7 @@ class MatchTest {
     void updateStatusSuccess() {
         // given
         Match match = Match.builder()
-                .user(user)
+                .puuid("test-puuid-123")
                 .matchId("KR_123456789")
                 .championName("Ahri")
                 .status(MatchStatus.PENDING)
@@ -112,7 +95,7 @@ class MatchTest {
     void defaultMatchStatus() {
         // given & when
         Match match = Match.builder()
-                .user(user)
+                .puuid("test-puuid-123")
                 .matchId("KR_123456789")
                 .championName("Ahri")
                 .build();

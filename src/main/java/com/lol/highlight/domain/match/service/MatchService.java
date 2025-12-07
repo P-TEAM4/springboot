@@ -1,6 +1,7 @@
 package com.lol.highlight.domain.match.service;
 
-import com.lol.highlight.domain.match.dto.MatchImportRequest;
+import com.lol.highlight.domain.match.config.MatchRefreshProperties;
+import com.lol.highlight.domain.match.dto.MatchDetailResponse;
 import com.lol.highlight.domain.match.dto.MatchResponse;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.enums.MatchStatus;
@@ -9,6 +10,10 @@ import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.domain.user.repository.UserRepository;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
+import com.lol.highlight.global.external.riot.client.RiotApiClient;
+import com.lol.highlight.global.external.riot.dto.RiotMatchDto;
+import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
+import com.lol.highlight.global.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -16,68 +21,257 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class MatchService {
 
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
+    private final RiotApiClient riotApiClient;
+    private final S3Service s3Service;
+    private final MatchRefreshProperties refreshProperties;
 
-    public MatchResponse getMatchById(Long id) {
-        Match match = matchRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
-        return MatchResponse.from(match);
-    }
+    private static final int DEFAULT_MATCH_COUNT = 20;
 
-    public Page<MatchResponse> getUserMatches(Long userId, Pageable pageable) {
-        return matchRepository.findByUserId(userId, pageable)
-                .map(MatchResponse::from);
+    @Transactional
+    public Page<MatchResponse> getMatchesBySummonerName(
+            Long requestUserId,
+            String gameName,
+            String tagLine,
+            Pageable pageable) {
+
+        // 1. 조회하는 회원 확인
+        User requestUser = userRepository.findById(requestUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 조회 대상의 puuid 가져오기
+        RiotSummonerDto summonerDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
+        String targetPuuid = summonerDto.getPuuid();
+
+        // 3. DB에 매치가 있는지 확인
+        long matchCount = matchRepository.countByPuuid(targetPuuid);
+
+        boolean needsRefresh = false;
+
+        if (matchCount == 0) {
+            // DB에 없으면: Rate Limit 체크 후 가져오기
+            if (!requestUser.canRefreshMatches(
+                    refreshProperties.getMaxCount(),
+                    refreshProperties.getWindowMinutes())) {
+                throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED,
+                        String.format("요청 제한을 초과했습니다. %d분에 %d번까지 가능합니다.",
+                                refreshProperties.getWindowMinutes(),
+                                refreshProperties.getMaxCount()));
+            }
+
+            log.info("No matches found for puuid: {}, fetching from Riot API", targetPuuid);
+            needsRefresh = true;
+
+        } else {
+            // DB에 있으면: Rate Limit 체크 후 갱신 (선택적)
+            if (requestUser.canRefreshMatches(
+                    refreshProperties.getMaxCount(),
+                    refreshProperties.getWindowMinutes())) {
+                log.info("Refreshing matches for puuid: {}", targetPuuid);
+                needsRefresh = true;
+            } else {
+                log.info("Rate limited: User {} returning cached data", requestUserId);
+            }
+        }
+
+        if (needsRefresh) {
+            // Riot API 호출 및 저장
+            refreshMatches(targetPuuid);
+
+            // 최근 N개만 유지
+            cleanupOldMatches(targetPuuid);
+
+            // Rate Limit 기록
+            requestUser.recordRefresh(refreshProperties.getWindowMinutes());
+        }
+
+        // 4. 활동 시간 업데이트
+        requestUser.updateLastActivityAt();
+        userRepository.save(requestUser);
+
+        // 5. DB에서 조회
+        Page<Match> matches = matchRepository.findByPuuidOrderByGameCreationDesc(
+                targetPuuid,
+                pageable
+        );
+
+        return matches.map(MatchResponse::from);
     }
 
     @Transactional
-    public MatchResponse importMatch(Long userId, MatchImportRequest request) {
-        User user = userRepository.findById(userId)
+    public void forceRefreshMatches(Long requestUserId, String gameName, String tagLine) {
+        // 1. 조회하는 회원 확인
+        User requestUser = userRepository.findById(requestUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        if (matchRepository.existsByMatchId(request.getMatchId())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "Match already imported");
+        // 2. Rate Limit 체크
+        if (!requestUser.canRefreshMatches(
+                refreshProperties.getMaxCount(),
+                refreshProperties.getWindowMinutes())) {
+            throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED,
+                    String.format("요청 제한을 초과했습니다. %d분에 %d번까지 가능합니다.",
+                            refreshProperties.getWindowMinutes(),
+                            refreshProperties.getMaxCount()));
         }
 
-        // TODO: Riot API를 통해 실제 매치 데이터 가져오기
+        // 3. puuid 가져오기
+        RiotSummonerDto summonerDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
+        String targetPuuid = summonerDto.getPuuid();
+
+        // 4. 강제 갱신
+        refreshMatches(targetPuuid);
+        cleanupOldMatches(targetPuuid);
+
+        // 5. Rate Limit 기록
+        requestUser.recordRefresh(refreshProperties.getWindowMinutes());
+        requestUser.updateLastActivityAt();
+        userRepository.save(requestUser);
+
+        log.info("Force refreshed matches for puuid: {} by user: {}", targetPuuid, requestUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public MatchDetailResponse getMatchDetail(Long matchId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+
+        if (match.getDetailDataUrl() == null) {
+            throw new IllegalStateException("Match detail data URL is not available");
+        }
+
+        return s3Service.downloadMatchData(match.getDetailDataUrl());
+    }
+
+    private void refreshMatches(String puuid) {
+        try {
+            List<String> matchIds = riotApiClient.getMatchIdsByPuuid(puuid, DEFAULT_MATCH_COUNT);
+
+            for (String matchId : matchIds) {
+                // DB에 이미 있으면 스킵
+                if (matchRepository.existsByMatchId(matchId)) {
+                    log.debug("Match already exists: {}", matchId);
+                    continue;
+                }
+
+                try {
+                    RiotMatchDto riotMatch = riotApiClient.getMatchById(matchId);
+                    saveMatch(puuid, riotMatch);
+                } catch (Exception e) {
+                    log.error("Failed to save match: {}", matchId, e);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to refresh matches for puuid: {}", puuid, e);
+            throw new BusinessException(ErrorCode.EXTERNAL_API_ERROR, "전적 갱신에 실패했습니다");
+        }
+    }
+
+    private void saveMatch(String puuid, RiotMatchDto riotMatch) {
+        String matchId = riotMatch.getMetadata().getMatchId();
+
+        // S3에 상세 데이터 업로드
+        MatchDetailResponse detailResponse = convertToMatchDetail(riotMatch);
+        String detailDataUrl = s3Service.uploadMatchData(matchId, detailResponse);
+
+        // 플레이어 데이터 찾기
+        RiotMatchDto.Participant playerData = riotMatch.getInfo().getParticipants().stream()
+                .filter(p -> puuid.equals(p.getPuuid()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Player not found in match"));
+
+        // Match 저장
         Match match = Match.builder()
-                .user(user)
-                .matchId(request.getMatchId())
-                .championName("Unknown")
-                .status(MatchStatus.PENDING)
+                .puuid(puuid)
+                .matchId(matchId)
+                .championName(playerData.getChampionName())
+                .kills(playerData.getKills())
+                .deaths(playerData.getDeaths())
+                .assists(playerData.getAssists())
+                .kda(calculateKda(playerData.getKills(), playerData.getDeaths(), playerData.getAssists()))
+                .win(playerData.getWin())
+                .gameDuration(riotMatch.getInfo().getGameDuration().intValue())
+                .gameCreation(riotMatch.getInfo().getGameCreation())
+                .status(MatchStatus.COMPLETED)
+                .detailDataUrl(detailDataUrl)
                 .build();
 
-        match = matchRepository.save(match);
-
-        // TODO: 비동기로 Riot API 호출 및 데이터 처리
-        log.info("Match import initiated for matchId: {}", request.getMatchId());
-
-        return MatchResponse.from(match);
+        matchRepository.save(match);
     }
 
     @Transactional
-    public void deleteMatch(Long id) {
-        Match match = matchRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
-        matchRepository.delete(match);
+    public void cleanupOldMatches(String puuid) {
+        matchRepository.deleteOldMatchesKeepRecent(puuid, refreshProperties.getKeepMatchCount());
+        log.debug("Cleaned up old matches for puuid: {}, keeping recent {}", puuid, refreshProperties.getKeepMatchCount());
     }
 
-    @Transactional
-    public void syncUserMatches(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    private MatchDetailResponse convertToMatchDetail(RiotMatchDto riotMatch) {
+        List<MatchDetailResponse.PlayerDetail> players = riotMatch.getInfo().getParticipants().stream()
+                .map(p -> {
+                    List<Integer> finalItems = List.of(
+                            p.getItem0(), p.getItem1(), p.getItem2(),
+                            p.getItem3(), p.getItem4(), p.getItem5(), p.getItem6()
+                    );
 
-        if (user.getRiotId() == null) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "User must link Riot account first");
+                    return MatchDetailResponse.PlayerDetail.builder()
+                            .playerName(p.getSummonerName())
+                            .championName(p.getChampionName())
+                            .kills(p.getKills())
+                            .deaths(p.getDeaths())
+                            .assists(p.getAssists())
+                            .totalDamageDealt(p.getTotalDamageDealtToChampions())
+                            .visionScore(p.getVisionScore())
+                            .cs(p.getTotalMinionsKilled() + p.getNeutralMinionsKilled())
+                            .finalItems(finalItems)
+                            .goldEarned(p.getGoldEarned())
+                            .itemBuild(new ArrayList<>())
+                            .skillBuild(new ArrayList<>())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        List<MatchDetailResponse.TeamDetail> teams = riotMatch.getInfo().getTeams().stream()
+                .map(t -> {
+                    int totalObjectives = t.getObjectives().getBaron().getKills()
+                            + t.getObjectives().getDragon().getKills()
+                            + t.getObjectives().getTower().getKills()
+                            + t.getObjectives().getInhibitor().getKills()
+                            + t.getObjectives().getRiftHerald().getKills();
+
+                    int totalKills = riotMatch.getInfo().getParticipants().stream()
+                            .filter(p -> p.getTeamId().equals(t.getTeamId()))
+                            .mapToInt(RiotMatchDto.Participant::getKills)
+                            .sum();
+
+                    return MatchDetailResponse.TeamDetail.builder()
+                            .teamId(t.getTeamId())
+                            .win(t.getWin())
+                            .totalObjectives(totalObjectives)
+                            .totalKills(totalKills)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return MatchDetailResponse.builder()
+                .matchId(riotMatch.getMetadata().getMatchId())
+                .players(players)
+                .teams(teams)
+                .build();
+    }
+
+    private Double calculateKda(Integer kills, Integer deaths, Integer assists) {
+        if (deaths == null || deaths == 0) {
+            return (kills != null ? kills : 0) + (assists != null ? assists : 0) * 1.0;
         }
-
-        // TODO: Riot API를 통해 최근 매치 목록 가져와서 저장
-        log.info("Match sync initiated for user: {}", userId);
+        return ((kills != null ? kills : 0) + (assists != null ? assists : 0)) / (double) deaths;
     }
 }
