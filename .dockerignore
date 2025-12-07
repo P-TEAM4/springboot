@@ -1,0 +1,53 @@
+# Build outputs
+build/
+target/
+.gradle/
+*.class
+*.jar
+*.war
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.settings/
+.classpath
+.project
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Documentation
+README.md
+*.md
+docs/
+
+# CI/CD
+.github/
+
+# Test files
+src/test/
+
+# Gradle wrapper (keep gradlew but ignore wrapper jar)
+.gradle/
+gradle/wrapper/*.jar

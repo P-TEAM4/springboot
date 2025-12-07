@@ -41,8 +41,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                String username = tokenProvider.getUsernameFromToken(jwt);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // JWT 토큰에서 userId 추출
+                Long userId = tokenProvider.getUserIdFromToken(jwt);
+                // userId를 String으로 변환하여 UserDetailsService에 전달
+                UserDetails userDetails = userDetailsService.loadUserByUsername(userId.toString());
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

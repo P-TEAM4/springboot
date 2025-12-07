@@ -50,6 +50,28 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public String createTokenWithUserId(Long userId) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
+
+        return Jwts.builder()
+                .subject(userId.toString())
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(key)
+                .compact();
+    }
+
+    public Long getUserIdFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return Long.parseLong(claims.getSubject());
+    }
+
     public String getUsernameFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)

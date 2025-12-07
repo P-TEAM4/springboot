@@ -17,11 +17,11 @@ public interface AnalysisRepository extends JpaRepository<Analysis, Long> {
 
     Optional<Analysis> findByMatchId(Long matchId);
 
-    @Query("SELECT a FROM Analysis a WHERE a.match.user.id = :userId")
-    Page<Analysis> findByUserId(@Param("userId") Long userId, Pageable pageable);
+    @Query("SELECT a FROM Analysis a WHERE a.match.puuid = :puuid")
+    Page<Analysis> findByPuuid(@Param("puuid") String puuid, Pageable pageable);
 
-    @Query("SELECT a FROM Analysis a WHERE a.match.user.id = :userId AND a.status = :status")
-    List<Analysis> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") AnalysisStatus status);
+    @Query("SELECT a FROM Analysis a WHERE a.match.puuid = :puuid AND a.status = :status")
+    List<Analysis> findByPuuidAndStatus(@Param("puuid") String puuid, @Param("status") AnalysisStatus status);
 
     boolean existsByMatchId(Long matchId);
 }

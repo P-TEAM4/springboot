@@ -10,6 +10,22 @@ spring:
       hibernate:
         format_sql: true
 
+riot:
+  api:
+    key: RGAPI-9eedff89-f747-44ef-9586-b4994614afd5
+    base-url: https://kr.api.riotgames.com
+    asia-url: https://asia.api.riotgames.com
+
+jwt:
+  secret: your-256-bit-secret-key-for-development-only-please-change-in-production
+
+aws:
+  s3:
+    access-key: your-aws-access-key
+    secret-key: your-aws-secret-key
+    region: ap-northeast-2
+    bucket: lol-highlight-bucket
+
 logging:
   level:
     com.lol: DEBUG
