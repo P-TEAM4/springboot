@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Create .env file and load variables
         id: env
@@ -63,12 +65,12 @@ jobs:
 
             gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
 
-            docker pull ${IMAGE_TAG}
+            sudo docker pull ${IMAGE_TAG}
 
-            docker stop nexus-spring-container || true
-            docker rm nexus-spring-container || true
+            sudo docker stop nexus-spring-container || true
+            sudo docker rm nexus-spring-container || true
 
-            docker run -d \
+            sudo docker run -d \
               --name nexus-spring-container \
               --restart unless-stopped \
               -p 8080:8080 \
@@ -77,7 +79,7 @@ jobs:
 
             rm -f /tmp/.env
 
-            docker image prune -af --filter 'until=72h' || true
+            sudo docker image prune -af --filter 'until=72h' || true
 
             echo 'Deployment completed successfully'
           "
