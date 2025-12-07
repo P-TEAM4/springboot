@@ -19,12 +19,10 @@ riot:
 jwt:
   secret: your-256-bit-secret-key-for-development-only-please-change-in-production
 
-aws:
-  s3:
-    access-key: your-aws-access-key
-    secret-key: your-aws-secret-key
-    region: ap-northeast-2
-    bucket: lol-highlight-bucket
+gcp:
+  storage:
+    project-id: test-project
+    bucket: lol-highlight-dev-bucket
 
 logging:
   level:

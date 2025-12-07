@@ -77,13 +77,11 @@ ai:
     base-url: ${AI_SERVER_URL:http://localhost:8000}
     timeout: 30000
 
-# AWS S3 설정
-aws:
-  s3:
-    access-key: ${AWS_S3_ACCESS_KEY:your-aws-access-key}
-    secret-key: ${AWS_S3_SECRET_KEY:your-aws-secret-key}
-    region: ${AWS_S3_REGION:ap-northeast-2}
-    bucket: ${AWS_S3_BUCKET:lol-highlight-bucket}
+# GCP Cloud Storage 설정
+gcp:
+  storage:
+    project-id: ${GCP_PROJECT_ID:your-gcp-project-id}
+    bucket: ${GCP_STORAGE_BUCKET:lol-highlight-bucket}
     match-data-prefix: match-data
 
 # Riot API 설정

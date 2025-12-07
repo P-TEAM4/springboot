@@ -1,15 +1,14 @@
 package com.lol.highlight.global.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -21,70 +20,65 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class S3Service {
+public class CloudStorageService {
 
-    private final S3Client s3Client;
+    private final Storage storage;
     private final ObjectMapper objectMapper;
 
-    @Value("${aws.s3.bucket}")
+    @Value("${gcp.storage.bucket}")
     private String bucketName;
 
-    @Value("${aws.s3.match-data-prefix:match-data}")
+    @Value("${gcp.storage.match-data-prefix:match-data}")
     private String matchDataPrefix;
 
     public String uploadMatchData(String matchId, MatchDetailResponse matchDetail) {
         try {
-            String key = String.format("%s/%s.csv", matchDataPrefix, matchId);
+            String objectName = String.format("%s/%s.csv", matchDataPrefix, matchId);
             String csvData = convertToCsv(matchDetail);
 
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .contentType("text/csv")
+            BlobId blobId = BlobId.of(bucketName, objectName);
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                    .setContentType("text/csv")
                     .build();
 
-            s3Client.putObject(putObjectRequest, RequestBody.fromString(csvData, StandardCharsets.UTF_8));
+            storage.create(blobInfo, csvData.getBytes(StandardCharsets.UTF_8));
 
-            String url = String.format("https://%s.s3.amazonaws.com/%s", bucketName, key);
-            log.info("Successfully uploaded match data to S3: {}", url);
+            String url = String.format("https://storage.googleapis.com/%s/%s", bucketName, objectName);
+            log.info("Successfully uploaded match data to Cloud Storage: {}", url);
 
             return url;
 
         } catch (Exception e) {
-            log.error("Failed to upload match data to S3 for matchId: {}", matchId, e);
-            throw new RuntimeException("Failed to upload match data to S3", e);
+            log.error("Failed to upload match data to Cloud Storage for matchId: {}", matchId, e);
+            throw new RuntimeException("Failed to upload match data to Cloud Storage", e);
         }
     }
 
     public MatchDetailResponse downloadMatchData(String detailDataUrl) {
         try {
-            String key = extractKeyFromUrl(detailDataUrl);
+            String objectName = extractObjectNameFromUrl(detailDataUrl);
+            BlobId blobId = BlobId.of(bucketName, objectName);
 
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .build();
-
-            byte[] data = s3Client.getObject(getObjectRequest).readAllBytes();
+            byte[] data = storage.readAllBytes(blobId);
             String csvData = new String(data, StandardCharsets.UTF_8);
 
             MatchDetailResponse matchDetail = parseCsv(csvData);
-            log.info("Successfully downloaded match data from S3: {}", detailDataUrl);
+            log.info("Successfully downloaded match data from Cloud Storage: {}", detailDataUrl);
 
             return matchDetail;
 
-        } catch (IOException e) {
-            log.error("Failed to download match data from S3: {}", detailDataUrl, e);
-            throw new RuntimeException("Failed to download match data from S3", e);
+        } catch (Exception e) {
+            log.error("Failed to download match data from Cloud Storage: {}", detailDataUrl, e);
+            throw new RuntimeException("Failed to download match data from Cloud Storage", e);
         }
     }
 
-    private String extractKeyFromUrl(String url) {
-        int bucketEndIndex = url.indexOf(".s3.amazonaws.com/");
+    private String extractObjectNameFromUrl(String url) {
+        int bucketEndIndex = url.indexOf(bucketName + "/");
         if (bucketEndIndex == -1) {
-            throw new IllegalArgumentException("Invalid S3 URL format: " + url);
+            throw new IllegalArgumentException("Invalid Cloud Storage URL format: " + url);
         }
-        return url.substring(bucketEndIndex + ".s3.amazonaws.com/".length());
+        return url.substring(bucketEndIndex + bucketName.length() + 1);
     }
 
     private String convertToCsv(MatchDetailResponse matchDetail) {

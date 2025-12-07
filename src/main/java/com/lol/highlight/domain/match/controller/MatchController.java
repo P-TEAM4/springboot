@@ -70,7 +70,7 @@ public class MatchController {
         return ApiResponse.success("전적이 성공적으로 갱신되었습니다");
     }
 
-    @Operation(summary = "매치 상세 정보 조회", description = "S3에서 매치 상세 데이터를 가져와 반환합니다.")
+    @Operation(summary = "매치 상세 정보 조회", description = "Cloud Storage에서 매치 상세 데이터를 가져와 반환합니다.")
     @ApiErrorExamples({
             ErrorCode.MATCH_NOT_FOUND,
             ErrorCode.INVALID_INPUT_VALUE,

@@ -13,7 +13,7 @@ import com.lol.highlight.global.exception.ErrorCode;
 import com.lol.highlight.global.external.riot.client.RiotApiClient;
 import com.lol.highlight.global.external.riot.dto.RiotMatchDto;
 import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
-import com.lol.highlight.global.service.S3Service;
+import com.lol.highlight.global.service.CloudStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,7 +33,7 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
     private final RiotApiClient riotApiClient;
-    private final S3Service s3Service;
+    private final CloudStorageService cloudStorageService;
     private final MatchRefreshProperties refreshProperties;
 
     private static final int DEFAULT_MATCH_COUNT = 20;
@@ -149,7 +149,7 @@ public class MatchService {
             throw new IllegalStateException("Match detail data URL is not available");
         }
 
-        return s3Service.downloadMatchData(match.getDetailDataUrl());
+        return cloudStorageService.downloadMatchData(match.getDetailDataUrl());
     }
 
     private void refreshMatches(String puuid) {
@@ -179,9 +179,9 @@ public class MatchService {
     private void saveMatch(String puuid, RiotMatchDto riotMatch) {
         String matchId = riotMatch.getMetadata().getMatchId();
 
-        // S3에 상세 데이터 업로드
+        // Cloud Storage에 상세 데이터 업로드
         MatchDetailResponse detailResponse = convertToMatchDetail(riotMatch);
-        String detailDataUrl = s3Service.uploadMatchData(matchId, detailResponse);
+        String detailDataUrl = cloudStorageService.uploadMatchData(matchId, detailResponse);
 
         // 플레이어 데이터 찾기
         RiotMatchDto.Participant playerData = riotMatch.getInfo().getParticipants().stream()
