@@ -28,6 +28,7 @@ public enum ErrorCode {
     MATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "Match not found"),
     RIOT_API_ERROR(HttpStatus.BAD_GATEWAY, "M002", "Riot API error"),
     SUMMONER_NOT_FOUND(HttpStatus.NOT_FOUND, "M003", "Summoner not found"),
+    RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "M004", "Rate limit exceeded"),
 
     // Highlight
     HIGHLIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "Highlight not found"),
@@ -42,7 +43,8 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH001", "Unauthorized"),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH002", "Invalid token"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH003", "Expired token"),
-    REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH004", "Refresh token not found");
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH004", "Refresh token not found"),
+    BLACKLISTED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH005", "Blacklisted token");
 
     private final HttpStatus status;
     private final String code;

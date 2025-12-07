@@ -1,0 +1,106 @@
+name: CD - Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file and load variables
+        id: env
+        run: |
+          echo "${{ secrets.PROD_ENV_FILE }}" > .env
+
+          # .env 파일에서 변수 추출
+          export $(cat .env | xargs)
+
+          # GitHub Actions 환경변수로 설정
+          echo "GCP_PROJECT_ID=$GCP_PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "GCP_REGION=$GCP_REGION" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_REGISTRY_REPO=$ARTIFACT_REGISTRY_REPO" >> $GITHUB_OUTPUT
+          echo "COMPUTE_INSTANCE_NAME=$COMPUTE_INSTANCE_NAME" >> $GITHUB_OUTPUT
+          echo "COMPUTE_ZONE=$COMPUTE_ZONE" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get latest image tag
+        id: image
+        run: |
+          IMAGE_TAG="${{ steps.env.outputs.GCP_REGION }}-docker.pkg.dev/${{ steps.env.outputs.GCP_PROJECT_ID }}/${{ steps.env.outputs.ARTIFACT_REGISTRY_REPO }}/lol-highlight-backend:main-$(git rev-parse --short HEAD)"
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Using image: $IMAGE_TAG"
+
+      - name: Deploy to Compute Engine
+        env:
+          INSTANCE_NAME: ${{ steps.env.outputs.COMPUTE_INSTANCE_NAME }}
+          ZONE: ${{ steps.env.outputs.COMPUTE_ZONE }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          GCP_REGION: ${{ steps.env.outputs.GCP_REGION }}
+        run: |
+          gcloud compute scp .env $INSTANCE_NAME:/tmp/.env --zone=$ZONE
+
+          gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --command="
+            set -e
+
+            gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
+
+            docker pull ${IMAGE_TAG}
+
+            docker stop nexus-spring-container || true
+            docker rm nexus-spring-container || true
+
+            docker run -d \
+              --name nexus-spring-container \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              --env-file /tmp/.env \
+              ${IMAGE_TAG}
+
+            rm -f /tmp/.env
+
+            docker image prune -af --filter 'until=72h' || true
+
+            echo 'Deployment completed successfully'
+          "
+
+      - name: Wait for application to start
+        run: sleep 30
+
+      - name: Health check via Load Balancer
+        run: |
+          LOAD_BALANCER_IP="${{ secrets.LOAD_BALANCER_IP }}"
+
+          echo "Checking health at http://${LOAD_BALANCER_IP}/health"
+
+          for i in {1..10}; do
+            if curl -f http://${LOAD_BALANCER_IP}/health; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          echo "Health check failed after 10 attempts"
+          exit 1
+
+      - name: Deployment notification
+        if: success()
+        run: |
+          echo "Successfully deployed to production!"
+          echo "Image: ${{ steps.image.outputs.tag }}"

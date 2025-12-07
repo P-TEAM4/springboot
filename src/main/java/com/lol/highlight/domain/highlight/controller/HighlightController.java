@@ -48,16 +48,15 @@ public class HighlightController {
         return ApiResponse.success(highlights);
     }
 
-    @Operation(summary = "사용자의 하이라이트 목록 조회", description = "특정 사용자의 모든 하이라이트를 페이징하여 조회합니다.")
+    @Operation(summary = "플레이어의 하이라이트 목록 조회", description = "특정 플레이어(puuid)의 모든 하이라이트를 페이징하여 조회합니다.")
     @ApiErrorExamples({
-            ErrorCode.USER_NOT_FOUND,
             ErrorCode.AUTHENTICATION_REQUIRED
     })
-    @GetMapping("/user/{userId}")
-    public ApiResponse<Page<HighlightResponse>> getUserHighlights(
-            @Parameter(description = "사용자 ID", required = true) @PathVariable Long userId,
+    @GetMapping("/player/{puuid}")
+    public ApiResponse<Page<HighlightResponse>> getPlayerHighlights(
+            @Parameter(description = "플레이어 PUUID", required = true) @PathVariable String puuid,
             @Parameter(description = "페이징 정보 (page, size, sort)") Pageable pageable) {
-        Page<HighlightResponse> highlights = highlightService.getUserHighlights(userId, pageable);
+        Page<HighlightResponse> highlights = highlightService.getHighlightsByPuuid(puuid, pageable);
         return ApiResponse.success(highlights);
     }
 
