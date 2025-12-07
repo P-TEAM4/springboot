@@ -63,9 +63,9 @@ jobs:
           gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --tunnel-through-iap --command="
             set -e
 
-            gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
+            gcloud auth configure-docker $GCP_REGION-docker.pkg.dev
 
-            docker pull ${IMAGE_TAG}
+            docker pull $IMAGE_TAG
 
             docker stop nexus-spring-container || true
             docker rm nexus-spring-container || true
@@ -75,7 +75,7 @@ jobs:
               --restart unless-stopped \
               -p 8080:8080 \
               --env-file /tmp/.env \
-              ${IMAGE_TAG}
+              $IMAGE_TAG
 
             rm -f /tmp/.env
 
