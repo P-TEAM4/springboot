@@ -11,6 +11,11 @@ import java.util.Map;
 @RestController
 public class HealthCheckController {
 
+    @GetMapping("/")
+    public ResponseEntity<String> rootCheck() {
+        return ResponseEntity.ok("Service is running");
+    }
+    
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> healthCheck() {
         Map<String, Object> health = new HashMap<>();
