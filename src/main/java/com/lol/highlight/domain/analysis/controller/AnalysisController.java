@@ -48,16 +48,15 @@ public class AnalysisController {
         return ApiResponse.success(analysis);
     }
 
-    @Operation(summary = "사용자의 분석 목록 조회", description = "특정 사용자의 모든 경기 분석을 페이징하여 조회합니다.")
+    @Operation(summary = "플레이어의 분석 목록 조회", description = "특정 플레이어(puuid)의 모든 경기 분석을 페이징하여 조회합니다.")
     @ApiErrorExamples({
-            ErrorCode.USER_NOT_FOUND,
             ErrorCode.AUTHENTICATION_REQUIRED
     })
-    @GetMapping("/user/{userId}")
-    public ApiResponse<Page<AnalysisResponse>> getUserAnalyses(
-            @Parameter(description = "사용자 ID", required = true) @PathVariable Long userId,
+    @GetMapping("/player/{puuid}")
+    public ApiResponse<Page<AnalysisResponse>> getPlayerAnalyses(
+            @Parameter(description = "플레이어 PUUID", required = true) @PathVariable String puuid,
             @Parameter(description = "페이징 정보 (page, size, sort)") Pageable pageable) {
-        Page<AnalysisResponse> analyses = analysisService.getUserAnalyses(userId, pageable);
+        Page<AnalysisResponse> analyses = analysisService.getAnalysesByPuuid(puuid, pageable);
         return ApiResponse.success(analyses);
     }
 

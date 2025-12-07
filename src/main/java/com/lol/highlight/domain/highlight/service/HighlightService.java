@@ -39,8 +39,8 @@ public class HighlightService {
                 .map(HighlightResponse::from);
     }
 
-    public Page<HighlightResponse> getUserHighlights(Long userId, Pageable pageable) {
-        return highlightRepository.findByUserId(userId, pageable)
+    public Page<HighlightResponse> getHighlightsByPuuid(String puuid, Pageable pageable) {
+        return highlightRepository.findByPuuid(puuid, pageable)
                 .map(HighlightResponse::from);
     }
 

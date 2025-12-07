@@ -19,11 +19,11 @@ public interface HighlightRepository extends JpaRepository<Highlight, Long> {
 
     List<Highlight> findByMatchIdAndStatus(Long matchId, HighlightStatus status);
 
-    @Query("SELECT h FROM Highlight h WHERE h.match.user.id = :userId")
-    Page<Highlight> findByUserId(@Param("userId") Long userId, Pageable pageable);
+    @Query("SELECT h FROM Highlight h WHERE h.match.puuid = :puuid")
+    Page<Highlight> findByPuuid(@Param("puuid") String puuid, Pageable pageable);
 
     List<Highlight> findByMatchIdAndType(Long matchId, HighlightType type);
 
-    @Query("SELECT h FROM Highlight h WHERE h.match.user.id = :userId AND h.status = :status")
-    List<Highlight> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") HighlightStatus status);
+    @Query("SELECT h FROM Highlight h WHERE h.match.puuid = :puuid AND h.status = :status")
+    List<Highlight> findByPuuidAndStatus(@Param("puuid") String puuid, @Param("status") HighlightStatus status);
 }
