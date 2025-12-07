@@ -65,12 +65,12 @@ jobs:
 
             gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
 
-            sudo docker pull ${IMAGE_TAG}
+            docker pull ${IMAGE_TAG}
 
-            sudo docker stop nexus-spring-container || true
-            sudo docker rm nexus-spring-container || true
+            docker stop nexus-spring-container || true
+            docker rm nexus-spring-container || true
 
-            sudo docker run -d \
+            docker run -d \
               --name nexus-spring-container \
               --restart unless-stopped \
               -p 8080:8080 \
@@ -79,7 +79,7 @@ jobs:
 
             rm -f /tmp/.env
 
-            sudo docker image prune -af --filter 'until=72h' || true
+            docker image prune -af --filter 'until=72h' || true
 
             echo 'Deployment completed successfully'
           "
