@@ -52,9 +52,9 @@ jobs:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
           GCP_REGION: ${{ steps.env.outputs.GCP_REGION }}
         run: |
-          gcloud compute scp .env $INSTANCE_NAME:/tmp/.env --zone=$ZONE
+          gcloud compute scp .env $INSTANCE_NAME:/tmp/.env --zone=$ZONE --tunnel-through-iap
 
-          gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --command="
+          gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --tunnel-through-iap --command="
             set -e
 
             gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
