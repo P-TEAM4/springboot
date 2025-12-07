@@ -28,6 +28,8 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다"),
     DUPLICATE_DEVICE(HttpStatus.CONFLICT, "이미 등록된 디바이스입니다"),
 
+    RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "요청 횟수 제한을 초과했습니다"),
+
     IMAGE_SIZE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "이미지 크기가 너무 큽니다"),
     IMAGE_FORMAT_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "지원하지 않는 이미지 형식입니다"),
     VIDEO_SIZE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "비디오 크기가 너무 큽니다"),

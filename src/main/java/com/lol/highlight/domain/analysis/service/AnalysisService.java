@@ -38,8 +38,8 @@ public class AnalysisService {
         return AnalysisResponse.from(analysis);
     }
 
-    public Page<AnalysisResponse> getUserAnalyses(Long userId, Pageable pageable) {
-        return analysisRepository.findByUserId(userId, pageable)
+    public Page<AnalysisResponse> getAnalysesByPuuid(String puuid, Pageable pageable) {
+        return analysisRepository.findByPuuid(puuid, pageable)
                 .map(AnalysisResponse::from);
     }
 
@@ -67,12 +67,9 @@ public class AnalysisService {
     }
 
     private void requestAiAnalysis(Long analysisId, Match match) {
-        // TODO: User 엔티티에 puuid와 tier 필드 추가 필요
-        // 현재는 matchId만으로 요청하며, AI 서버가 match 데이터로부터 puuid를 추출할 수 있어야 함
-        // 또는 Match 엔티티에 puuid 필드를 추가하거나, User 엔티티와의 관계를 통해 가져와야 함
-
-        String puuid = "TEMP_PUUID"; // TODO: match.getUser().getPuuid() 또는 match.getPuuid()로 변경
-        String tier = "GOLD"; // TODO: match.getUser().getTier()로 변경
+        // Match 엔티티에서 puuid를 직접 가져옴
+        String puuid = match.getPuuid();
+        String tier = "GOLD"; // TODO: User 엔티티에서 tier를 가져오는 방법 필요
 
         com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest aiRequest =
             com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest.builder()

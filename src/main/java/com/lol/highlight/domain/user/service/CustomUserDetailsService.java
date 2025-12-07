@@ -20,14 +20,21 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    public UserDetails loadUserByUsername(String userIdStr) throws UsernameNotFoundException {
+        // userIdStr은 userId (String)로 전달됨
+        try {
+            Long userId = Long.parseLong(userIdStr);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                "",
-                Collections.singleton(new SimpleGrantedAuthority(user.getRole().getKey()))
-        );
+            // UserDetails의 username을 userId로 설정
+            return new org.springframework.security.core.userdetails.User(
+                    user.getId().toString(),
+                    "",
+                    Collections.singleton(new SimpleGrantedAuthority(user.getRole().getKey()))
+            );
+        } catch (NumberFormatException e) {
+            throw new UsernameNotFoundException("Invalid user ID format: " + userIdStr);
+        }
     }
 }
