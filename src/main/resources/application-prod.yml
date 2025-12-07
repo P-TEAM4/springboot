@@ -52,9 +52,10 @@ jwt:
   refresh-expiration: 604800000
 
 gcp:
-  project-id: ${GCP_PROJECT_ID}
   storage:
+    project-id: ${GCP_PROJECT_ID}
     bucket: ${GCP_STORAGE_BUCKET}
+    match-data-prefix: match-data
 
 logging:
   level:
@@ -76,3 +77,16 @@ server:
       max: 200
       min-spare: 10
     accept-count: 100
+
+# Match Refresh 설정
+match:
+  refresh:
+    window-minutes: 3      # Rate Limit 윈도우 시간 (분)
+    max-count: 5           # 윈도우 내 최대 갱신 횟수
+    keep-match-count: 40   # 유지할 최대 매치 개수
+
+# AI Server 설정
+ai:
+  server:
+    base-url: ${AI_SERVER_URL}
+    timeout: 30000
