@@ -62,10 +62,10 @@ public class SwaggerConfig {
                         .version("v1.0.0")
                         .contact(new Contact()
                                 .name("P-Team 4")
-                                .email("team4@example.com")))
+                                .email("setiguy@gachon.ac.kr")))
                 .servers(List.of(
-                        new Server().url("http://localhost:8080").description("Local Server"),
-                        new Server().url("https://api.lolhighlight.com").description("Production Server")))
+                        new Server().url("https://nexus-gg.kro.kr").description("Production Server"),
+                        new Server().url("http://localhost:8080").description("Local Server")))
                 .addSecurityItem(securityRequirement)
                 .components(components);
     }
