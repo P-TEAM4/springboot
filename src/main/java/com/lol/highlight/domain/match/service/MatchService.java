@@ -17,6 +17,7 @@ import com.lol.highlight.global.service.CloudStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,10 +100,11 @@ public class MatchService {
         requestUser.updateLastActivityAt();
         userRepository.save(requestUser);
 
-        // 5. DB에서 조회
+        // 5. DB에서 조회 (정렬은 메서드 이름에 포함되어 있으므로 Pageable의 정렬 무시)
+        Pageable unsortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         Page<Match> matches = matchRepository.findByPuuidOrderByGameCreationDesc(
                 targetPuuid,
-                pageable
+                unsortedPageable
         );
 
         return matches.map(MatchResponse::from);
