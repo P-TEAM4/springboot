@@ -25,9 +25,11 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     long countByPuuid(String puuid);
 
     // 최근 N개만 유지, 나머지 삭제
+    // MySQL의 서브쿼리 LIMIT 제한 우회: 서브쿼리를 한 번 더 래핑
     @Modifying
-    @Query("DELETE FROM Match m WHERE m.puuid = :puuid AND m.id NOT IN " +
-           "(SELECT m2.id FROM Match m2 WHERE m2.puuid = :puuid ORDER BY m2.gameCreation DESC LIMIT :keepCount)")
+    @Query(value = "DELETE FROM matches WHERE puuid = :puuid AND id NOT IN " +
+           "(SELECT id FROM (SELECT id FROM matches WHERE puuid = :puuid ORDER BY game_creation DESC LIMIT :keepCount) AS temp)",
+           nativeQuery = true)
     void deleteOldMatchesKeepRecent(@Param("puuid") String puuid, @Param("keepCount") int keepCount);
 
     // TTL 관리용
