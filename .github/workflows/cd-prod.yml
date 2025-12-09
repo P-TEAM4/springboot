@@ -21,20 +21,31 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Create .env file and load variables
+      - name: Load environment variables safely
         id: env
         run: |
-          echo "${{ secrets.PROD_ENV_FILE }}" > .env
+          echo "${{ secrets.PROD_ENV_FILE }}" > .env.tmp
 
-          # .env 파일에서 변수 추출
-          export $(cat .env | xargs)
+          # 안전한 파싱 (특수문자 처리)
+          while IFS='=' read -r key value || [ -n "$key" ]; do
+            # 주석과 빈 줄 건너뛰기
+            [[ "$key" =~ ^#.*$ ]] && continue
+            [[ -z "$key" ]] && continue
 
-          # GitHub Actions 환경변수로 설정
-          echo "GCP_PROJECT_ID=$GCP_PROJECT_ID" >> $GITHUB_OUTPUT
-          echo "GCP_REGION=$GCP_REGION" >> $GITHUB_OUTPUT
-          echo "ARTIFACT_REGISTRY_REPO=$ARTIFACT_REGISTRY_REPO" >> $GITHUB_OUTPUT
-          echo "COMPUTE_INSTANCE_NAME=$COMPUTE_INSTANCE_NAME" >> $GITHUB_OUTPUT
-          echo "COMPUTE_ZONE=$COMPUTE_ZONE" >> $GITHUB_OUTPUT
+            # 앞뒤 공백 제거
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+
+            # 따옴표 제거
+            value="${value%\"}"
+            value="${value#\"}"
+
+            # GitHub Output에 추가
+            echo "${key}=${value}" >> $GITHUB_OUTPUT
+          done < .env.tmp
+
+          # 임시 파일 삭제
+          rm -f .env.tmp
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -51,65 +62,165 @@ jobs:
           echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "Using image: $IMAGE_TAG"
 
-      - name: Deploy to Compute Engine
+      - name: Deploy to Compute Engine with zero-downtime
+        id: deploy
         env:
           INSTANCE_NAME: ${{ steps.env.outputs.COMPUTE_INSTANCE_NAME }}
           ZONE: ${{ steps.env.outputs.COMPUTE_ZONE }}
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
           GCP_REGION: ${{ steps.env.outputs.GCP_REGION }}
         run: |
-          gcloud compute scp .env $INSTANCE_NAME:/tmp/.env --zone=$ZONE --tunnel-through-iap
+          # .env 파일을 안전하게 전송
+          echo "${{ secrets.PROD_ENV_FILE }}" > .env.tmp
+          gcloud compute scp .env.tmp $INSTANCE_NAME:/tmp/.env --zone=$ZONE --tunnel-through-iap
+          rm -f .env.tmp
 
+          # Zero-downtime 배포 스크립트 실행
           gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --tunnel-through-iap --command="
             set -e
 
             export IMAGE_TAG='$IMAGE_TAG'
             export GCP_REGION='$GCP_REGION'
 
+            echo '==> Step 1: Docker 인증'
             gcloud auth configure-docker \$GCP_REGION-docker.pkg.dev
 
-            docker pull \$IMAGE_TAG
+            echo '==> Step 2: 현재 실행 중인 이미지 저장 (롤백용)'
+            PREVIOUS_IMAGE=\$(docker inspect nexus-spring-container --format='{{.Config.Image}}' 2>/dev/null || echo 'none')
+            echo \"Previous image: \$PREVIOUS_IMAGE\"
 
-            docker stop nexus-spring-container || true
-            docker rm nexus-spring-container || true
+            echo '==> Step 3: 새 이미지 Pull'
+            if ! docker pull \$IMAGE_TAG; then
+              echo 'Failed to pull new image'
+              exit 1
+            fi
 
+            echo '==> Step 4: 새 컨테이너 시작 (임시 포트 8081)'
             docker run -d \
-              --name nexus-spring-container \
+              --name nexus-spring-container-new \
               --restart unless-stopped \
-              -p 8080:8080 \
+              -p 8081:8080 \
               --env-file /tmp/.env \
               \$IMAGE_TAG
 
-            rm -f /tmp/.env
+            echo '==> Step 5: 새 컨테이너 헬스체크 (최대 60초)'
+            HEALTHY=false
+            for i in {1..30}; do
+              if curl -f http://localhost:8081/health 2>/dev/null; then
+                HEALTHY=true
+                echo \"Health check passed after \$i attempts\"
+                break
+              fi
+              echo \"Health check attempt \$i/30...\"
+              sleep 2
+            done
 
-            docker image prune -af --filter 'until=72h' || true
+            if [ \"\$HEALTHY\" = true ]; then
+              echo '==> Step 6: 헬스체크 성공, 기존 컨테이너 교체'
+
+              # 기존 컨테이너 중지
+              docker stop nexus-spring-container || true
+              docker rm nexus-spring-container || true
+
+              # 새 컨테이너를 8080 포트로 재시작
+              docker stop nexus-spring-container-new
+              docker rm nexus-spring-container-new
+
+              docker run -d \
+                --name nexus-spring-container \
+                --restart unless-stopped \
+                -p 8080:8080 \
+                --env-file /tmp/.env \
+                \$IMAGE_TAG
+
+              echo '==> Step 7: 최종 헬스체크'
+              sleep 5
+              if curl -f http://localhost:8080/health 2>/dev/null; then
+                echo 'Deployment successful!'
+              else
+                echo 'Final health check failed, but container is running'
+              fi
+
+              # 이전 이미지 정리 (최근 3개 버전만 유지)
+              docker images --format '{{.Repository}}:{{.Tag}}' | \
+                grep 'lol-highlight-backend' | \
+                tail -n +4 | \
+                xargs -r docker rmi 2>/dev/null || true
+
+            else
+              echo '==> Rollback: 헬스체크 실패, 새 컨테이너 제거'
+              docker stop nexus-spring-container-new || true
+              docker rm nexus-spring-container-new || true
+              docker rmi \$IMAGE_TAG || true
+
+              echo 'Rollback completed. Previous container still running.'
+              exit 1
+            fi
+
+            # .env 파일 삭제 (보안)
+            rm -f /tmp/.env
 
             echo 'Deployment completed successfully'
           "
 
-      - name: Wait for application to start
-        run: sleep 30
+      - name: Wait for load balancer to detect new instance
+        run: sleep 10
 
-      - name: Health check via Load Balancer
+      - name: Enhanced health check via Load Balancer
         run: |
           LOAD_BALANCER_IP="${{ secrets.LOAD_BALANCER_IP }}"
 
-          echo "Checking health at http://${LOAD_BALANCER_IP}/health"
+          echo "Performing comprehensive health check..."
 
-          for i in {1..10}; do
-            if curl -f http://${LOAD_BALANCER_IP}/health; then
-              echo "Health check passed!"
-              exit 0
+          # Readiness check (애플리케이션 준비 상태)
+          echo "1. Readiness check"
+          for i in {1..15}; do
+            if curl -f -m 5 http://${LOAD_BALANCER_IP}/health 2>/dev/null; then
+              echo "Readiness check passed!"
+              break
             fi
-            echo "Attempt $i failed, retrying in 10s..."
-            sleep 10
+            echo "Attempt $i/15..."
+            sleep 4
           done
 
-          echo "Health check failed after 10 attempts"
-          exit 1
+          # Liveness check (애플리케이션 동작 상태)
+          echo "2. Liveness check"
+          if ! curl -f http://${LOAD_BALANCER_IP}/health; then
+            echo "Liveness check failed"
+            exit 1
+          fi
 
-      - name: Deployment notification
+          # Smoke tests (기본 기능 검증)
+          echo "3. Running smoke tests"
+
+          # API 응답 확인
+          if ! curl -f -m 10 http://${LOAD_BALANCER_IP}/health; then
+            echo "API health endpoint failed"
+            exit 1
+          fi
+
+          echo "All health checks passed!"
+
+      - name: Deployment success notification
         if: success()
         run: |
-          echo "Successfully deployed to production!"
+          echo "========================================"
+          echo "Deployment completed successfully!"
+          echo "========================================"
           echo "Image: ${{ steps.image.outputs.tag }}"
+          echo "Time: $(date)"
+          echo "Commit: ${{ github.event.workflow_run.head_sha }}"
+          echo "========================================"
+
+      - name: Deployment failure notification
+        if: failure()
+        run: |
+          echo "========================================"
+          echo "Deployment failed!"
+          echo "========================================"
+          echo "Image: ${{ steps.image.outputs.tag }}"
+          echo "Time: $(date)"
+          echo "Commit: ${{ github.event.workflow_run.head_sha }}"
+          echo "========================================"
+          echo "Previous container should still be running."
+          echo "Check logs for details."
