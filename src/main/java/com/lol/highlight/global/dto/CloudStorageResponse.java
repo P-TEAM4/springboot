@@ -1,4 +1,4 @@
-package com.lol.highlight.domain.match.dto;
+package com.lol.highlight.global.dto;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -7,16 +7,16 @@ import java.util.List;
 
 @Getter
 @Builder
-public class MatchDetailResponse {
+public class CloudStorageResponse {
 
     private String matchId;
     private String gameVersion;
-    private List<PlayerDetail> players;
-    private List<TeamDetail> teams;
+    private List<PlayerData> players;
+    private List<TeamData> teams;
 
     @Getter
     @Builder
-    public static class PlayerDetail {
+    public static class PlayerData {
         private String playerName;
         private String championName;
         private Integer kills;
@@ -26,34 +26,24 @@ public class MatchDetailResponse {
         private Integer visionScore;
         private Integer cs;
         private List<Integer> finalItems;
-        private List<ItemInfo> finalItemsInfo;
         private Integer goldEarned;
-        private List<ItemBuild> itemBuild;
+        private List<ItemBuildData> itemBuild;
         private List<Integer> skillBuild;
     }
 
     @Getter
     @Builder
-    public static class ItemBuild {
+    public static class ItemBuildData {
         private Integer itemId;
         private Integer timestamp;
     }
 
     @Getter
     @Builder
-    public static class TeamDetail {
+    public static class TeamData {
         private Integer teamId;
         private Boolean win;
         private Integer totalObjectives;
         private Integer totalKills;
-    }
-
-    @Getter
-    @Builder
-    public static class ItemInfo {
-        private Integer itemId;
-        private String itemName;
-        private String itemDescription;
-        private String itemImageUrl;
     }
 }
