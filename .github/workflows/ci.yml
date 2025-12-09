@@ -10,64 +10,161 @@ on:
       - main
       - develop
 
+# 동일 브랜치의 이전 워크플로우 취소 (시간 절약)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ============================================
+  # 변경 사항 체크 (불필요한 빌드 스킵)
+  # ============================================
+  check-changes:
+    name: Check Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should-test: ${{ steps.filter.outputs.code }}
+      should-build: ${{ steps.filter.outputs.docker }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check which files changed
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'build.gradle'
+              - 'settings.gradle'
+            docker:
+              - 'src/**'
+              - 'Dockerfile'
+              - 'build.gradle'
+
+  # ============================================
+  # 테스트 실행 (병렬 최적화)
+  # ============================================
   test:
     name: Run Tests
+    needs: check-changes
+    if: needs.check-changes.outputs.should-test == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Setup Gradle with enhanced caching
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          # PR에서는 캐시 읽기만, main에서만 캐시 쓰기
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run tests
-        run: ./gradlew test --no-daemon
+      - name: Run tests with parallel execution
+        run: |
+          ./gradlew test \
+            --no-daemon \
+            --parallel \
+            --max-workers=4 \
+            --build-cache \
+            --configuration-cache
 
-      - name: Upload test results
-        if: always()
+      - name: Upload test results (on failure)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ github.sha }}
           path: build/test-results/
+          retention-days: 7
 
       - name: Upload coverage reports
-        if: always()
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports-${{ github.sha }}
           path: build/reports/
+          retention-days: 30
 
-  build:
-    name: Build Docker Image
-    needs: test
+  # ============================================
+  # 보안 스캔 (테스트와 병렬 실행)
+  # ============================================
+  security-scan:
+    name: Security Scan
+    needs: check-changes
+    if: needs.check-changes.outputs.should-test == 'true'
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create .env file and load variables
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ============================================
+  # Docker 이미지 빌드 및 푸시 (고도화된 캐싱)
+  # ============================================
+  build:
+    name: Build Docker Image
+    needs: [check-changes, test, security-scan]
+    runs-on: ubuntu-latest
+    if: |
+      needs.check-changes.outputs.should-build == 'true' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Load environment variables safely
         id: env
         run: |
-          echo "${{ secrets.PROD_ENV_FILE }}" > .env
+          echo "${{ secrets.PROD_ENV_FILE }}" > .env.tmp
 
-          # .env 파일에서 변수 추출
-          export $(cat .env | xargs)
+          # 안전한 파싱 (특수문자 처리)
+          while IFS='=' read -r key value || [ -n "$key" ]; do
+            # 주석과 빈 줄 건너뛰기
+            [[ "$key" =~ ^#.*$ ]] && continue
+            [[ -z "$key" ]] && continue
 
-          # GitHub Actions 환경변수로 설정
-          echo "GCP_PROJECT_ID=$GCP_PROJECT_ID" >> $GITHUB_OUTPUT
-          echo "GCP_REGION=$GCP_REGION" >> $GITHUB_OUTPUT
-          echo "ARTIFACT_REGISTRY_REPO=$ARTIFACT_REGISTRY_REPO" >> $GITHUB_OUTPUT
+            # 앞뒤 공백 제거
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+
+            # 따옴표 제거
+            value="${value%\"}"
+            value="${value#\"}"
+
+            # GitHub Output에 추가
+            echo "${key}=${value}" >> $GITHUB_OUTPUT
+          done < .env.tmp
+
+          # 임시 파일 삭제
+          rm -f .env.tmp
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -94,16 +191,29 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable=true
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image with multi-layer caching
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # 다층 캐싱 전략
+          cache-from: |
+            type=gha,scope=gradle-deps
+            type=gha,scope=final-image
+          cache-to: type=gha,mode=max,scope=final-image
           platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.env.outputs.GCP_REGION }}-docker.pkg.dev/${{ steps.env.outputs.GCP_PROJECT_ID }}/${{ steps.env.outputs.ARTIFACT_REGISTRY_REPO }}/lol-highlight-backend:latest
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
 
       - name: Output image tags
         run: |

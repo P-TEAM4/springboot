@@ -57,4 +57,16 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // 병렬 테스트 실행 설정
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+
+    // 테스트 실패 시 즉시 중단하지 않음 (모든 테스트 결과 확인)
+    failFast = false
+
+    // 테스트 리포트 생성
+    reports {
+        html.required = true
+        junitXml.required = true
+    }
 }
