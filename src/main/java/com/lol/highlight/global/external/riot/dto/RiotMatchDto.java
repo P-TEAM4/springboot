@@ -28,6 +28,7 @@ public class RiotMatchDto {
     public static class Info {
         private Long gameCreation;
         private Long gameDuration;
+        private String gameVersion;
         private List<Participant> participants;
         private List<Team> teams;
     }
