@@ -78,7 +78,7 @@ public class MatchController {
     })
     @GetMapping("/{matchId}/detail")
     public ApiResponse<MatchDetailResponse> getMatchDetail(
-            @Parameter(description = "매치 ID", required = true) @PathVariable Long matchId) {
+            @Parameter(description = "매치 ID (예: KR_7951942780)", required = true) @PathVariable String matchId) {
         MatchDetailResponse detail = matchService.getMatchDetail(matchId);
         return ApiResponse.success(detail);
     }

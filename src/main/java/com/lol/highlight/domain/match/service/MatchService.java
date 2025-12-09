@@ -36,6 +36,7 @@ public class MatchService {
     private final RiotApiClient riotApiClient;
     private final CloudStorageService cloudStorageService;
     private final MatchRefreshProperties refreshProperties;
+    private final com.lol.highlight.global.external.datadragon.DataDragonService dataDragonService;
 
     private static final int DEFAULT_MATCH_COUNT = 20;
 
@@ -143,15 +144,76 @@ public class MatchService {
     }
 
     @Transactional(readOnly = true)
-    public MatchDetailResponse getMatchDetail(Long matchId) {
-        Match match = matchRepository.findById(matchId)
+    public MatchDetailResponse getMatchDetail(String matchId) {
+        Match match = matchRepository.findByMatchId(matchId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
         if (match.getDetailDataUrl() == null) {
             throw new IllegalStateException("Match detail data URL is not available");
         }
 
-        return cloudStorageService.downloadMatchData(match.getDetailDataUrl());
+        com.lol.highlight.global.dto.CloudStorageResponse storageResponse =
+                cloudStorageService.downloadMatchData(match.getDetailDataUrl());
+
+        return convertToMatchDetailResponse(storageResponse);
+    }
+
+    private MatchDetailResponse convertToMatchDetailResponse(
+            com.lol.highlight.global.dto.CloudStorageResponse storageResponse) {
+
+        String gameVersion = storageResponse.getGameVersion();
+
+        List<MatchDetailResponse.PlayerDetail> players = storageResponse.getPlayers().stream()
+                .map(playerData -> {
+                    List<MatchDetailResponse.ItemInfo> itemInfoList =
+                            dataDragonService.getItemsInfo(playerData.getFinalItems(), gameVersion);
+
+                    return MatchDetailResponse.PlayerDetail.builder()
+                            .playerName(playerData.getPlayerName())
+                            .championName(playerData.getChampionName())
+                            .kills(playerData.getKills())
+                            .deaths(playerData.getDeaths())
+                            .assists(playerData.getAssists())
+                            .totalDamageDealt(playerData.getTotalDamageDealt())
+                            .visionScore(playerData.getVisionScore())
+                            .cs(playerData.getCs())
+                            .finalItems(playerData.getFinalItems())
+                            .finalItemsInfo(itemInfoList)
+                            .goldEarned(playerData.getGoldEarned())
+                            .itemBuild(convertItemBuild(playerData.getItemBuild()))
+                            .skillBuild(playerData.getSkillBuild())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        List<MatchDetailResponse.TeamDetail> teams = storageResponse.getTeams().stream()
+                .map(teamData -> MatchDetailResponse.TeamDetail.builder()
+                        .teamId(teamData.getTeamId())
+                        .win(teamData.getWin())
+                        .totalObjectives(teamData.getTotalObjectives())
+                        .totalKills(teamData.getTotalKills())
+                        .build())
+                .collect(Collectors.toList());
+
+        return MatchDetailResponse.builder()
+                .matchId(storageResponse.getMatchId())
+                .gameVersion(gameVersion)
+                .players(players)
+                .teams(teams)
+                .build();
+    }
+
+    private List<MatchDetailResponse.ItemBuild> convertItemBuild(
+            List<com.lol.highlight.global.dto.CloudStorageResponse.ItemBuildData> itemBuildData) {
+        if (itemBuildData == null) {
+            return new ArrayList<>();
+        }
+        return itemBuildData.stream()
+                .map(data -> MatchDetailResponse.ItemBuild.builder()
+                        .itemId(data.getItemId())
+                        .timestamp(data.getTimestamp())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private void refreshMatches(String puuid) {
@@ -265,6 +327,7 @@ public class MatchService {
 
         return MatchDetailResponse.builder()
                 .matchId(riotMatch.getMetadata().getMatchId())
+                .gameVersion(riotMatch.getInfo().getGameVersion())
                 .players(players)
                 .teams(teams)
                 .build();

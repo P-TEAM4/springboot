@@ -5,6 +5,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
+import com.lol.highlight.global.dto.CloudStorageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,7 +34,9 @@ public class CloudStorageService {
 
     public String uploadMatchData(String matchId, MatchDetailResponse matchDetail) {
         try {
-            String objectName = String.format("%s/%s.csv", matchDataPrefix, matchId);
+            // 게임 버전 추출 (예: 14.23.1.12345 -> 14.23)
+            String gameVersion = extractPatchVersion(matchDetail.getGameVersion());
+            String objectName = String.format("%s/%s/%s.csv", matchDataPrefix, gameVersion, matchId);
             String csvData = convertToCsv(matchDetail);
 
             BlobId blobId = BlobId.of(bucketName, objectName);
@@ -54,7 +57,7 @@ public class CloudStorageService {
         }
     }
 
-    public MatchDetailResponse downloadMatchData(String detailDataUrl) {
+    public CloudStorageResponse downloadMatchData(String detailDataUrl) {
         try {
             String objectName = extractObjectNameFromUrl(detailDataUrl);
             BlobId blobId = BlobId.of(bucketName, objectName);
@@ -62,10 +65,10 @@ public class CloudStorageService {
             byte[] data = storage.readAllBytes(blobId);
             String csvData = new String(data, StandardCharsets.UTF_8);
 
-            MatchDetailResponse matchDetail = parseCsv(csvData);
+            CloudStorageResponse storageResponse = parseCsv(csvData);
             log.info("Successfully downloaded match data from Cloud Storage: {}", detailDataUrl);
 
-            return matchDetail;
+            return storageResponse;
 
         } catch (Exception e) {
             log.error("Failed to download match data from Cloud Storage: {}", detailDataUrl, e);
@@ -112,10 +115,10 @@ public class CloudStorageService {
         return csv.toString();
     }
 
-    private MatchDetailResponse parseCsv(String csvData) throws IOException {
+    private CloudStorageResponse parseCsv(String csvData) throws IOException {
         BufferedReader reader = new BufferedReader(new StringReader(csvData));
-        List<MatchDetailResponse.PlayerDetail> players = new ArrayList<>();
-        List<MatchDetailResponse.TeamDetail> teams = new ArrayList<>();
+        List<CloudStorageResponse.PlayerData> players = new ArrayList<>();
+        List<CloudStorageResponse.TeamData> teams = new ArrayList<>();
 
         String line;
         boolean isTeamSection = false;
@@ -137,37 +140,47 @@ public class CloudStorageService {
                 continue;
             }
 
-            String[] values = line.split(",");
-
             if (!isTeamSection) {
-                MatchDetailResponse.PlayerDetail player = MatchDetailResponse.PlayerDetail.builder()
-                        .playerName(values[0])
-                        .championName(values[1])
-                        .kills(Integer.parseInt(values[2]))
-                        .deaths(Integer.parseInt(values[3]))
-                        .assists(Integer.parseInt(values[4]))
-                        .totalDamageDealt(Integer.parseInt(values[5]))
-                        .visionScore(Integer.parseInt(values[6]))
-                        .cs(Integer.parseInt(values[7]))
-                        .finalItems(parseIntegerList(values[8]))
-                        .goldEarned(Integer.parseInt(values[9]))
+                int arrayStart = line.indexOf('[');
+                int arrayEnd = line.indexOf(']');
+
+                String beforeArray = line.substring(0, arrayStart);
+                String arrayContent = line.substring(arrayStart, arrayEnd + 1);
+                String afterArray = line.substring(arrayEnd + 1);
+
+                String[] beforeValues = beforeArray.split(",");
+                String[] afterValues = afterArray.split(",");
+
+                CloudStorageResponse.PlayerData player = CloudStorageResponse.PlayerData.builder()
+                        .playerName(beforeValues[0].trim())
+                        .championName(beforeValues[1].trim())
+                        .kills(Integer.parseInt(beforeValues[2].trim()))
+                        .deaths(Integer.parseInt(beforeValues[3].trim()))
+                        .assists(Integer.parseInt(beforeValues[4].trim()))
+                        .totalDamageDealt(Integer.parseInt(beforeValues[5].trim()))
+                        .visionScore(Integer.parseInt(beforeValues[6].trim()))
+                        .cs(Integer.parseInt(beforeValues[7].trim()))
+                        .finalItems(parseIntegerList(arrayContent))
+                        .goldEarned(Integer.parseInt(afterValues[1].trim()))
                         .itemBuild(new ArrayList<>())
                         .skillBuild(new ArrayList<>())
                         .build();
                 players.add(player);
             } else {
-                MatchDetailResponse.TeamDetail team = MatchDetailResponse.TeamDetail.builder()
-                        .teamId(Integer.parseInt(values[0]))
-                        .win(Boolean.parseBoolean(values[1]))
-                        .totalObjectives(Integer.parseInt(values[2]))
-                        .totalKills(Integer.parseInt(values[3]))
+                String[] values = line.split(",");
+                CloudStorageResponse.TeamData team = CloudStorageResponse.TeamData.builder()
+                        .teamId(Integer.parseInt(values[0].trim()))
+                        .win(Boolean.parseBoolean(values[1].trim()))
+                        .totalObjectives(Integer.parseInt(values[2].trim()))
+                        .totalKills(Integer.parseInt(values[3].trim()))
                         .build();
                 teams.add(team);
             }
         }
 
-        return MatchDetailResponse.builder()
+        return CloudStorageResponse.builder()
                 .matchId("")
+                .gameVersion(null)
                 .players(players)
                 .teams(teams)
                 .build();
@@ -198,5 +211,21 @@ public class CloudStorageService {
             }
         }
         return result;
+    }
+
+    /**
+     * 게임 버전에서 패치 버전 추출
+     * 예: "14.23.1.12345" -> "14.23"
+     */
+    private String extractPatchVersion(String gameVersion) {
+        if (gameVersion == null || gameVersion.isEmpty()) {
+            return "unknown";
+        }
+
+        String[] parts = gameVersion.split("\\.");
+        if (parts.length >= 2) {
+            return parts[0] + "." + parts[1];
+        }
+        return gameVersion;
     }
 }
