@@ -42,7 +42,14 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-for-development-only-please-change-in-production}
-  expiration: 86400000
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+# OAuth2 redirect configuration
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
+    error-redirect-uri: ${OAUTH2_ERROR_REDIRECT_URI:http://localhost:3000/auth/error}
 
 server:
   port: 8080
@@ -70,6 +77,8 @@ logging:
     com.lol: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss}{Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n"
 
 # AI Server 설정
 ai:
