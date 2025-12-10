@@ -9,10 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -34,7 +36,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         User user = processOAuth2User(registrationId, attributes);
 
-        return oAuth2User;
+        // userId를 attributes에 추가
+        Map<String, Object> modifiedAttributes = new HashMap<>(attributes);
+        modifiedAttributes.put("userId", user.getId());
+
+        log.info("OAuth2 user processed: userId={}, email={}", user.getId(), user.getEmail());
+
+        return new DefaultOAuth2User(
+                oAuth2User.getAuthorities(),
+                modifiedAttributes,
+                "sub"
+        );
     }
 
     private User processOAuth2User(String registrationId, Map<String, Object> attributes) {
