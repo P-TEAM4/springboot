@@ -127,11 +127,20 @@ jobs:
                 \$IMAGE_TAG
 
               echo '==> Step 7: 최종 확인'
-              sleep 3
-              if curl -f http://localhost:8080/health 2>/dev/null; then
-                echo 'Deployment successful!'
-              else
-                echo 'Warning: Final health check failed, but container is running'
+              FINAL_HEALTHY=false
+              for i in {1..15}; do
+                if curl -f http://localhost:8080/health 2>/dev/null; then
+                  FINAL_HEALTHY=true
+                  echo \"Final health check passed after \$i attempts\"
+                  echo 'Deployment successful!'
+                  break
+                fi
+                echo \"Final health check attempt \$i/15...\"
+                sleep 2
+              done
+
+              if [ \"\$FINAL_HEALTHY\" = false ]; then
+                echo 'Warning: Final health check failed after 15 attempts, but container is running'
               fi
 
               docker images --format '{{.Repository}}:{{.Tag}}' | \
@@ -154,7 +163,7 @@ jobs:
           "
 
       - name: Wait for load balancer
-        run: sleep 5
+        run: sleep 30
 
       - name: Health check via Load Balancer
         run: |
