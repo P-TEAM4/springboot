@@ -39,6 +39,7 @@ spring:
             scope:
               - email
               - profile
+            redirect-uri: "https://nexus-gg.kro.kr/login/oauth2/code/google"
 
 riot:
   api:
@@ -49,7 +50,13 @@ riot:
 jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
-  refresh-expiration: 604800000
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+
+# OAuth2 redirect configuration
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI}
+    error-redirect-uri: ${OAUTH2_ERROR_REDIRECT_URI}
 
 gcp:
   storage:
@@ -66,7 +73,7 @@ logging:
     org.springframework.security: INFO
     org.hibernate: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss}{Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n"
 
 server:
   port: 8080
