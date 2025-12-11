@@ -21,8 +21,11 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-# Health check용 curl 설치
-RUN apk add --no-cache curl
+# Health check용 curl 및 타임존 데이터 설치
+RUN apk add --no-cache curl tzdata
+
+# 한국 시간대 설정
+ENV TZ=Asia/Seoul
 
 # 보안을 위한 non-root 사용자 생성
 RUN addgroup -S spring && adduser -S spring -G spring
