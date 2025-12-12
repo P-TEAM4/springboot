@@ -13,12 +13,26 @@ import java.util.Enumeration;
 @Component
 public class RequestLoggingFilter implements Filter {
 
+    private static final String[] EXCLUDED_PATHS = {
+            "/health",
+            "/actuator",
+            "/favicon.ico"
+    };
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
+
+        String uri = httpRequest.getRequestURI();
+
+        // 제외할 경로인지 확인
+        if (shouldSkipLogging(uri)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         // 요청 시작 시간 기록
         long startTime = System.currentTimeMillis();
@@ -34,6 +48,15 @@ public class RequestLoggingFilter implements Filter {
             long duration = System.currentTimeMillis() - startTime;
             logResponse(httpRequest, httpResponse, duration);
         }
+    }
+
+    private boolean shouldSkipLogging(String uri) {
+        for (String excludedPath : EXCLUDED_PATHS) {
+            if (uri.startsWith(excludedPath)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void logRequest(HttpServletRequest request) {
