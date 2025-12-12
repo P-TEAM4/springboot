@@ -97,7 +97,10 @@ jobs:
               -e RIOT_API_KEY=\"\$RIOT_API_KEY\" \
               \$IMAGE_TAG
 
-            echo '==> Step 5: 새 컨테이너 헬스체크 (최대 30초)'
+            echo '==> Step 5: 초기 대기 (애플리케이션 시작 시간 확보)'
+            sleep 30
+
+            echo '==> Step 6: 새 컨테이너 헬스체크 (최대 75초)'
             HEALTHY=false
             for i in {1..15}; do
               if curl -f http://localhost:8081/health 2>/dev/null; then
@@ -106,11 +109,11 @@ jobs:
                 break
               fi
               echo \"Health check attempt \$i/15...\"
-              sleep 2
+              sleep 5
             done
 
             if [ \"\$HEALTHY\" = true ]; then
-              echo '==> Step 6: 헬스체크 성공, 기존 컨테이너 교체'
+              echo '==> Step 7: 헬스체크 성공, 기존 컨테이너 교체'
 
               docker stop nexus-spring-container || true
               docker rm nexus-spring-container || true
@@ -126,7 +129,10 @@ jobs:
                 -e RIOT_API_KEY=\"\$RIOT_API_KEY\" \
                 \$IMAGE_TAG
 
-              echo '==> Step 7: 최종 확인'
+              echo '==> Step 8: 초기 대기 (최종 컨테이너 시작 시간 확보)'
+              sleep 30
+
+              echo '==> Step 9: 최종 헬스체크 (최대 75초)'
               FINAL_HEALTHY=false
               for i in {1..15}; do
                 if curl -f http://localhost:8080/health 2>/dev/null; then
@@ -136,7 +142,7 @@ jobs:
                   break
                 fi
                 echo \"Final health check attempt \$i/15...\"
-                sleep 2
+                sleep 5
               done
 
               if [ \"\$FINAL_HEALTHY\" = false ]; then
