@@ -31,8 +31,8 @@ public class UserController {
     })
     @GetMapping("/me")
     public ApiResponse<UserResponse> getCurrentUser(Authentication authentication) {
-        String email = authentication.getName();
-        UserResponse user = userService.getUserByEmail(email);
+        Long userId = Long.parseLong(authentication.getName());
+        UserResponse user = userService.getUserById(userId);
         return ApiResponse.success("현재 사용자 정보 조회 성공", user);
     }
 
