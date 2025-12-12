@@ -116,4 +116,19 @@ public class AuthService {
 
         return userRepository.save(newUser);
     }
+
+    @Transactional
+    public User createOrGetTestUser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User testUser = User.builder()
+                            .email(email)
+                            .name("Test User")
+                            .provider(AuthProvider.GOOGLE)
+                            .providerId("test-provider-id")
+                            .role(UserRole.USER)
+                            .build();
+                    return userRepository.save(testUser);
+                });
+    }
 }
