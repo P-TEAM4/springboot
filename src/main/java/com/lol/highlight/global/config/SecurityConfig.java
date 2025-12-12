@@ -4,6 +4,7 @@ import com.lol.highlight.global.auth.filter.JwtAuthenticationFilter;
 import com.lol.highlight.global.auth.oauth2.CustomOAuth2UserService;
 import com.lol.highlight.global.auth.oauth2.OAuth2AuthenticationFailureHandler;
 import com.lol.highlight.global.auth.oauth2.OAuth2AuthenticationSuccessHandler;
+import com.lol.highlight.global.filter.RequestLoggingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,7 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RequestLoggingFilter requestLoggingFilter;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -47,6 +49,7 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService))
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                         .failureHandler(oAuth2AuthenticationFailureHandler))
+                .addFilterBefore(requestLoggingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // H2 Console 사용을 위한 설정
