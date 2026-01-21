@@ -2,6 +2,7 @@ package com.lol.highlight.domain.analysis.service;
 
 import com.lol.highlight.domain.analysis.dto.AnalysisCreateRequest;
 import com.lol.highlight.domain.analysis.dto.AnalysisResponse;
+import com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest;
 import com.lol.highlight.domain.analysis.entity.Analysis;
 import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.analysis.repository.AnalysisRepository;
@@ -16,6 +17,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 경기 분석 서비스
+ *
+ * TODO: [FastAPI 연동]
+ * AiAnalysisClient를 통해 FastAPI 서버와 통신합니다.
+ * 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,9 +40,42 @@ public class AnalysisService {
         return AnalysisResponse.from(analysis);
     }
 
-    public AnalysisResponse getAnalysisByMatchId(Long matchId) {
-        Analysis analysis = analysisRepository.findByMatchId(matchId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));
+    /**
+     * 매치 ID로 분석 정보를 조회합니다.
+     * DB에 분석 정보가 없으면 자동으로 PENDING 상태로 생성하고 FastAPI에 분석 요청을 보냅니다.
+     *
+     * TODO: [FastAPI 연동]
+     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
+     */
+    @Transactional
+    public AnalysisResponse getAnalysisByMatchId(Long matchId, String tier) {
+        // 기존 분석이 있으면 반환
+        return analysisRepository.findByMatchId(matchId)
+                .map(AnalysisResponse::from)
+                .orElseGet(() -> createAndRequestAnalysis(matchId, tier));
+    }
+
+    /**
+     * 분석이 없을 경우 PENDING 상태로 생성하고 FastAPI에 요청
+     */
+    private AnalysisResponse createAndRequestAnalysis(Long matchId, String tier) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+
+        // PENDING 상태로 Analysis 생성
+        Analysis analysis = Analysis.builder()
+                .match(match)
+                .status(AnalysisStatus.PENDING)
+                .build();
+
+        analysis = analysisRepository.save(analysis);
+
+        // FastAPI 서버에 비동기로 분석 요청
+        requestAiAnalysis(analysis.getId(), match, tier);
+        log.info("Analysis auto-created and requested for match ID: {}, analysis ID: {}",
+                matchId, analysis.getId());
+
         return AnalysisResponse.from(analysis);
     }
 
@@ -44,7 +85,7 @@ public class AnalysisService {
     }
 
     @Transactional
-    public AnalysisResponse createAnalysis(AnalysisCreateRequest request) {
+    public AnalysisResponse createAnalysis(AnalysisCreateRequest request, String tier) {
         Match match = matchRepository.findById(request.getMatchId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
@@ -60,28 +101,32 @@ public class AnalysisService {
         analysis = analysisRepository.save(analysis);
 
         // 비동기로 AI 서버에 분석 요청
-        requestAiAnalysis(analysis.getId(), match);
+        requestAiAnalysis(analysis.getId(), match, tier);
         log.info("Analysis creation initiated for match: {}", request.getMatchId());
 
         return AnalysisResponse.from(analysis);
     }
 
-    private void requestAiAnalysis(Long analysisId, Match match) {
-        // Match 엔티티에서 puuid를 직접 가져옴
+    /**
+     * FastAPI 서버에 AI 분석 요청을 보냅니다.
+     *
+     * TODO: [FastAPI 연동]
+     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
+     */
+    private void requestAiAnalysis(Long analysisId, Match match, String tier) {
         String puuid = match.getPuuid();
-        String tier = "GOLD"; // TODO: User 엔티티에서 tier를 가져오는 방법 필요
+        // tier가 null인 경우 기본값 사용
+        String userTier = (tier != null) ? tier : "UNRANKED";
 
-        com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest aiRequest =
-            com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest.builder()
+        GapAnalysisRequest aiRequest = GapAnalysisRequest.builder()
                 .matchId(match.getMatchId())
                 .puuid(puuid)
-                .tier(tier)
+                .tier(userTier)
                 .build();
 
         aiAnalysisClient.requestGapAnalysis(analysisId, aiRequest);
-
-        // TODO: 두 번째 AI 엔드포인트 호출 (예: /api/v1/analyze/match)
-        // aiAnalysisClient.requestMatchAnalysis(analysisId, matchAnalysisRequest);
+        log.info("AI analysis request sent for analysis ID: {}, matchId: {}, tier: {}", analysisId, match.getMatchId(), userTier);
     }
 
     @Transactional
@@ -91,16 +136,4 @@ public class AnalysisService {
         analysisRepository.delete(analysis);
     }
 
-    @Transactional
-    public AnalysisResponse regenerateAnalysis(Long id) {
-        Analysis analysis = analysisRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));
-
-        analysis.updateStatus(AnalysisStatus.PENDING);
-
-        // TODO: 비동기로 AI 서버에 재분석 요청
-        log.info("Analysis regeneration initiated for analysis: {}", id);
-
-        return AnalysisResponse.from(analysis);
-    }
 }

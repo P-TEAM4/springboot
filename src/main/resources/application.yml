@@ -81,10 +81,14 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss}{Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n"
 
 # AI Server 설정
+# TODO: [FastAPI 연동] 실제 FastAPI 서버 배포 후 AI_SERVER_URL 환경변수 설정 필요
+# 현재는 임시 URL(localhost:8000)로 설정되어 있습니다.
 ai:
   server:
     base-url: ${AI_SERVER_URL:http://localhost:8000}
-    timeout: 30000
+    timeout: 30000           # 읽기 타임아웃 (ms)
+    connect-timeout: 5000    # 연결 타임아웃 (ms)
+    max-retries: 3           # 재시도 횟수
 
 # GCP Cloud Storage 설정
 gcp:

@@ -3,6 +3,8 @@ package com.lol.highlight.domain.analysis.controller;
 import com.lol.highlight.domain.analysis.dto.AnalysisCreateRequest;
 import com.lol.highlight.domain.analysis.dto.AnalysisResponse;
 import com.lol.highlight.domain.analysis.service.AnalysisService;
+import com.lol.highlight.domain.user.entity.User;
+import com.lol.highlight.global.auth.annotation.AuthUser;
 import com.lol.highlight.global.common.ApiResponse;
 import com.lol.highlight.global.common.annotation.ApiErrorExamples;
 import com.lol.highlight.global.exception.enums.ErrorCode;
@@ -35,7 +37,7 @@ public class AnalysisController {
         return ApiResponse.success(analysis);
     }
 
-    @Operation(summary = "매치의 분석 조회", description = "특정 매치에 대한 분석 정보를 조회합니다.")
+    @Operation(summary = "매치의 분석 조회", description = "특정 매치에 대한 분석 정보를 조회합니다. 분석이 없으면 자동으로 생성하고 AI 분석을 요청합니다.")
     @ApiErrorExamples({
             ErrorCode.MATCH_NOT_FOUND,
             ErrorCode.ANALYSIS_NOT_FOUND,
@@ -43,8 +45,9 @@ public class AnalysisController {
     })
     @GetMapping("/match/{matchId}")
     public ApiResponse<AnalysisResponse> getAnalysisByMatch(
+            @AuthUser User user,
             @Parameter(description = "매치 ID", required = true) @PathVariable Long matchId) {
-        AnalysisResponse analysis = analysisService.getAnalysisByMatchId(matchId);
+        AnalysisResponse analysis = analysisService.getAnalysisByMatchId(matchId, user.getTier());
         return ApiResponse.success(analysis);
     }
 
@@ -69,23 +72,10 @@ public class AnalysisController {
     })
     @PostMapping
     public ApiResponse<AnalysisResponse> createAnalysis(
+            @AuthUser User user,
             @Valid @RequestBody AnalysisCreateRequest request) {
-        AnalysisResponse analysis = analysisService.createAnalysis(request);
+        AnalysisResponse analysis = analysisService.createAnalysis(request, user.getTier());
         return ApiResponse.success(analysis);
-    }
-
-    @Operation(summary = "AI 분석 재생성", description = "기존 분석을 AI를 통해 다시 생성합니다. (비동기 처리)")
-    @ApiErrorExamples({
-            ErrorCode.ANALYSIS_NOT_FOUND,
-            ErrorCode.INVALID_INPUT_VALUE,
-            ErrorCode.EXTERNAL_API_ERROR,
-            ErrorCode.AUTHENTICATION_REQUIRED
-    })
-    @PostMapping("/{id}/regenerate")
-    public ApiResponse<AnalysisResponse> regenerateAnalysis(
-            @Parameter(description = "분석 ID", required = true) @PathVariable Long id) {
-        AnalysisResponse analysis = analysisService.regenerateAnalysis(id);
-        return ApiResponse.accepted("분석 재생성 요청이 접수되었습니다");
     }
 
     @Operation(summary = "분석 삭제", description = "특정 경기 분석을 삭제합니다.")
