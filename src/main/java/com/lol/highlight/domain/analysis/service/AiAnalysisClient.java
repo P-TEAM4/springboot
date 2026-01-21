@@ -5,31 +5,65 @@ import com.lol.highlight.domain.analysis.dto.ai.GapAnalysisResponse;
 import com.lol.highlight.domain.analysis.entity.Analysis;
 import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.analysis.repository.AnalysisRepository;
-import lombok.RequiredArgsConstructor;
+import com.lol.highlight.global.exception.BusinessException;
+import com.lol.highlight.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+
+/**
+ * FastAPI AI 서버와 통신하는 클라이언트
+ *
+ * TODO: [FastAPI 연동]
+ * 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+ * FastAPI 서버 엔드포인트:
+ *   - POST /api/v1/analyze/gap : 갭 분석 (matchId, puuid, tier)
+ *   - POST /api/v1/analyze/match : 매치 분석 (match_id, summoner_name, tag_line)
+ *   - POST /api/v1/analyze/profile : 프로필 분석 (summoner_name, tag_line, recent_games)
+ */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiAnalysisClient {
 
-    @Qualifier("aiRestTemplate")
     private final RestTemplate restTemplate;
     private final AnalysisRepository analysisRepository;
 
+    /**
+     * TODO: [임시 엔드포인트]
+     * FastAPI 서버 개발 완료 후 실제 엔드포인트로 변경
+     */
+    private static final String GAP_ANALYSIS_ENDPOINT = "/api/v1/analyze/gap";
+    private static final String MATCH_ANALYSIS_ENDPOINT = "/api/v1/analyze/match";
+
+    public AiAnalysisClient(
+            @Qualifier("aiRestTemplate") RestTemplate restTemplate,
+            AnalysisRepository analysisRepository) {
+        this.restTemplate = restTemplate;
+        this.analysisRepository = analysisRepository;
+    }
+
+    /**
+     * 갭 분석 요청 (비동기)
+     *
+     * @param analysisId 분석 ID
+     * @param request 분석 요청 데이터
+     */
     @Async
     @Transactional
     public void requestGapAnalysis(Long analysisId, GapAnalysisRequest request) {
-        try {
-            log.info("Requesting gap analysis for analysis ID: {}", analysisId);
+        log.info("Requesting gap analysis for analysis ID: {}, matchId: {}", analysisId, request.getMatchId());
 
+        try {
             GapAnalysisResponse response = restTemplate.postForObject(
-                    "/api/v1/analyze/gap",
+                    GAP_ANALYSIS_ENDPOINT,
                     request,
                     GapAnalysisResponse.class
             );
@@ -38,13 +72,50 @@ public class AiAnalysisClient {
                 updateAnalysisWithGapResult(analysisId, response);
                 log.info("Gap analysis completed successfully for analysis ID: {}", analysisId);
             } else {
-                markAnalysisFailed(analysisId, "Empty response from AI server");
+                markAnalysisFailed(analysisId, "AI 서버로부터 빈 응답을 받았습니다");
             }
 
+        } catch (ResourceAccessException e) {
+            handleConnectionError(analysisId, e);
+        } catch (RestClientException e) {
+            handleRestClientError(analysisId, e);
         } catch (Exception e) {
-            log.error("Failed to request gap analysis for analysis ID: {}", analysisId, e);
-            markAnalysisFailed(analysisId, e.getMessage());
+            handleUnexpectedError(analysisId, e);
         }
+    }
+
+    /**
+     * 연결 오류 처리
+     */
+    private void handleConnectionError(Long analysisId, ResourceAccessException e) {
+        Throwable cause = e.getCause();
+
+        if (cause instanceof ConnectException) {
+            log.error("AI 서버 연결 실패 - 서버가 실행 중인지 확인하세요. Analysis ID: {}", analysisId);
+            markAnalysisFailed(analysisId, "AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.");
+        } else if (cause instanceof SocketTimeoutException) {
+            log.error("AI 서버 응답 시간 초과. Analysis ID: {}", analysisId);
+            markAnalysisFailed(analysisId, "AI 서버 응답 시간이 초과되었습니다.");
+        } else {
+            log.error("AI 서버 접근 오류. Analysis ID: {}", analysisId, e);
+            markAnalysisFailed(analysisId, "AI 서버 접근 오류: " + e.getMessage());
+        }
+    }
+
+    /**
+     * REST 클라이언트 오류 처리
+     */
+    private void handleRestClientError(Long analysisId, RestClientException e) {
+        log.error("AI 서버 요청 오류. Analysis ID: {}", analysisId, e);
+        markAnalysisFailed(analysisId, "AI 서버 요청 오류: " + e.getMessage());
+    }
+
+    /**
+     * 예상치 못한 오류 처리
+     */
+    private void handleUnexpectedError(Long analysisId, Exception e) {
+        log.error("AI 분석 중 예상치 못한 오류 발생. Analysis ID: {}", analysisId, e);
+        markAnalysisFailed(analysisId, "분석 중 오류 발생: " + e.getMessage());
     }
 
     private void updateAnalysisWithGapResult(Long analysisId, GapAnalysisResponse response) {
