@@ -104,6 +104,19 @@ public class UserService {
     }
 
     @Transactional
+    public UserResponse unlinkRiotAccount(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getRiotId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "연동된 Riot 계정이 없습니다");
+        }
+
+        user.unlinkRiotAccount();
+        return UserResponse.from(user);
+    }
+
+    @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
