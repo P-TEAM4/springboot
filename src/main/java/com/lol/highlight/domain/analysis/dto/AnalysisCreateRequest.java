@@ -1,6 +1,6 @@
 package com.lol.highlight.domain.analysis.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AnalysisCreateRequest {
 
-    @NotNull(message = "Match ID is required")
-    private Long matchId;
+    @NotBlank(message = "Match ID is required")
+    private String matchId;
 }

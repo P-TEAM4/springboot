@@ -216,6 +216,45 @@ public class MatchService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public Match fetchAndSaveMatch(String puuid, String matchId) {
+        // DB에 이미 있으면 그대로 반환
+        return matchRepository.findByMatchId(matchId)
+                .orElseGet(() -> {
+                    RiotMatchDto riotMatch = riotApiClient.getMatchById(matchId);
+                    return saveAndReturnMatch(puuid, riotMatch);
+                });
+    }
+
+    private Match saveAndReturnMatch(String puuid, RiotMatchDto riotMatch) {
+        String matchId = riotMatch.getMetadata().getMatchId();
+
+        MatchDetailResponse detailResponse = convertToMatchDetail(riotMatch);
+        String detailDataUrl = cloudStorageService.uploadMatchData(matchId, detailResponse);
+
+        RiotMatchDto.Participant playerData = riotMatch.getInfo().getParticipants().stream()
+                .filter(p -> puuid.equals(p.getPuuid()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND, "해당 매치에서 플레이어를 찾을 수 없습니다"));
+
+        Match match = Match.builder()
+                .puuid(puuid)
+                .matchId(matchId)
+                .championName(playerData.getChampionName())
+                .kills(playerData.getKills())
+                .deaths(playerData.getDeaths())
+                .assists(playerData.getAssists())
+                .kda(calculateKda(playerData.getKills(), playerData.getDeaths(), playerData.getAssists()))
+                .win(playerData.getWin())
+                .gameDuration(riotMatch.getInfo().getGameDuration().intValue())
+                .gameCreation(riotMatch.getInfo().getGameCreation())
+                .status(MatchStatus.COMPLETED)
+                .detailDataUrl(detailDataUrl)
+                .build();
+
+        return matchRepository.save(match);
+    }
+
     private void refreshMatches(String puuid) {
         try {
             List<String> matchIds = riotApiClient.getMatchIdsByPuuid(puuid, DEFAULT_MATCH_COUNT);
