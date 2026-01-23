@@ -10,10 +10,14 @@ import lombok.NoArgsConstructor;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class RiotSummonerDto {
 
+    @JsonProperty("id")
     private String id;
+
+    @JsonProperty("accountId")
     private String accountId;
+
+    @JsonProperty("puuid")
     private String puuid;
-    private String name;
 
     @JsonProperty("profileIconId")
     private Integer profileIconId;

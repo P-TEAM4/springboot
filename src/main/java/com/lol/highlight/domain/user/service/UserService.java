@@ -76,7 +76,7 @@ public class UserService {
         Integer losses = null;
 
         try {
-            List<RiotLeagueDto> leagueEntries = riotApiClient.getLeagueBySummonerId(summonerDto.getId());
+            List<RiotLeagueDto> leagueEntries = riotApiClient.getLeagueByPuuid(puuid);
             if (leagueEntries != null && !leagueEntries.isEmpty()) {
                 // 솔로 랭크 우선, 없으면 첫 번째 엔트리 사용
                 RiotLeagueDto soloRank = leagueEntries.stream()
@@ -91,7 +91,7 @@ public class UserService {
                 losses = soloRank.getLosses();
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch league info for summoner: {}", summonerDto.getId(), e);
+            log.warn("Failed to fetch league info for puuid: {}", puuid, e);
         }
 
         user.updateSummonerInfo(

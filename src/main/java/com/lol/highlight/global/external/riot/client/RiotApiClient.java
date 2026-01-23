@@ -64,11 +64,11 @@ public class RiotApiClient {
         return response.getBody();
     }
 
-    public List<RiotLeagueDto> getLeagueBySummonerId(String summonerId) {
-        String url = String.format("%s/lol/league/v4/entries/by-summoner/%s",
-                baseUrl, summonerId);
+    public List<RiotLeagueDto> getLeagueByPuuid(String puuid) {
+        String url = String.format("%s/lol/league/v4/entries/by-puuid/%s",
+                baseUrl, puuid);
 
-        log.info("Fetching league by summoner ID: {}", summonerId);
+        log.info("Fetching league by PUUID: {}", puuid);
 
         ResponseEntity<List<RiotLeagueDto>> response = restTemplate.exchange(
                 url,
