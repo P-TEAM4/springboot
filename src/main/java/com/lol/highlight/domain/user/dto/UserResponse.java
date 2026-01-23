@@ -19,8 +19,23 @@ public class UserResponse {
     private String riotId;
     private String summonerName;
     private String tagLine;
+    private Integer profileIconId;
+    private Long summonerLevel;
+    private String tier;
+    private String rank;
+    private Integer leaguePoints;
+    private Integer wins;
+    private Integer losses;
+    private Double winRate;
+    private Double averageKda;
+    private Double averageVisionScore;
+    private Double averageCsPerMin;
     private AuthProvider provider;
+    private String providerId;
     private UserRole role;
+    private LocalDateTime lastActivityAt;
+    private LocalDateTime lastMatchRefreshAt;
+    private Integer refreshCountInWindow;
     private LocalDateTime createdAt;
 
     public static UserResponse from(User user) {
@@ -32,8 +47,23 @@ public class UserResponse {
                 .riotId(user.getRiotId())
                 .summonerName(user.getSummonerName())
                 .tagLine(user.getTagLine())
+                .profileIconId(user.getProfileIconId())
+                .summonerLevel(user.getSummonerLevel())
+                .tier(user.getTier())
+                .rank(user.getRank())
+                .leaguePoints(user.getLeaguePoints())
+                .wins(user.getWins())
+                .losses(user.getLosses())
+                .winRate(user.getWinRate())
+                .averageKda(user.getAverageKda())
+                .averageVisionScore(user.getAverageVisionScore())
+                .averageCsPerMin(user.getAverageCsPerMin())
                 .provider(user.getProvider())
+                .providerId(user.getProviderId())
                 .role(user.getRole())
+                .lastActivityAt(user.getLastActivityAt())
+                .lastMatchRefreshAt(user.getLastMatchRefreshAt())
+                .refreshCountInWindow(user.getRefreshCountInWindow())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

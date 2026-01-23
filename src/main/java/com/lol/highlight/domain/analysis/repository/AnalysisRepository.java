@@ -17,6 +17,10 @@ public interface AnalysisRepository extends JpaRepository<Analysis, Long> {
 
     Optional<Analysis> findByMatchId(Long matchId);
 
+    Optional<Analysis> findByMatch_MatchId(String matchId);
+
+    boolean existsByMatch_MatchId(String matchId);
+
     @Query("SELECT a FROM Analysis a WHERE a.match.puuid = :puuid")
     Page<Analysis> findByPuuid(@Param("puuid") String puuid, Pageable pageable);
 

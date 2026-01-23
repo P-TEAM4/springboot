@@ -8,8 +8,12 @@ import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.analysis.repository.AnalysisRepository;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;
+import com.lol.highlight.domain.match.service.MatchService;
+import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
+import com.lol.highlight.global.external.riot.client.RiotApiClient;
+import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,6 +36,8 @@ public class AnalysisService {
 
     private final AnalysisRepository analysisRepository;
     private final MatchRepository matchRepository;
+    private final MatchService matchService;
+    private final RiotApiClient riotApiClient;
     private final AiAnalysisClient aiAnalysisClient;
 
     public AnalysisResponse getAnalysisById(Long id) {
@@ -41,27 +47,24 @@ public class AnalysisService {
     }
 
     /**
-     * 매치 ID로 분석 정보를 조회합니다.
+     * Riot 매치 ID로 분석 정보를 조회합니다.
      * DB에 분석 정보가 없으면 자동으로 PENDING 상태로 생성하고 FastAPI에 분석 요청을 보냅니다.
-     *
-     * TODO: [FastAPI 연동]
-     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
-     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
+     * DB에 매치가 없으면 Riot API에서 가져옵니다.
      */
     @Transactional
-    public AnalysisResponse getAnalysisByMatchId(Long matchId, String tier) {
+    public AnalysisResponse getAnalysisByMatchId(String matchId, User user) {
         // 기존 분석이 있으면 반환
-        return analysisRepository.findByMatchId(matchId)
+        return analysisRepository.findByMatch_MatchId(matchId)
                 .map(AnalysisResponse::from)
-                .orElseGet(() -> createAndRequestAnalysis(matchId, tier));
+                .orElseGet(() -> createAndRequestAnalysis(matchId, user));
     }
 
     /**
-     * 분석이 없을 경우 PENDING 상태로 생성하고 FastAPI에 요청
+     * 분석이 없을 경우 PENDING 상태로 생성하고 FastAPI에 요청.
+     * 매치가 DB에 없으면 Riot API에서 가져와 저장합니다.
      */
-    private AnalysisResponse createAndRequestAnalysis(Long matchId, String tier) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+    private AnalysisResponse createAndRequestAnalysis(String matchId, User user) {
+        Match match = getOrFetchMatch(matchId, user);
 
         // PENDING 상태로 Analysis 생성
         Analysis analysis = Analysis.builder()
@@ -72,11 +75,33 @@ public class AnalysisService {
         analysis = analysisRepository.save(analysis);
 
         // FastAPI 서버에 비동기로 분석 요청
+        String tier = (user.getTier() != null) ? user.getTier() : "UNRANKED";
         requestAiAnalysis(analysis.getId(), match, tier);
         log.info("Analysis auto-created and requested for match ID: {}, analysis ID: {}",
                 matchId, analysis.getId());
 
         return AnalysisResponse.from(analysis);
+    }
+
+    /**
+     * DB에서 매치를 조회하고, 없으면 Riot API에서 가져와 저장합니다.
+     */
+    private Match getOrFetchMatch(String matchId, User user) {
+        return matchRepository.findByMatchId(matchId)
+                .orElseGet(() -> {
+                    if (user.getSummonerName() == null || user.getTagLine() == null) {
+                        throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
+                                "Riot 계정이 연동되지 않았습니다. 먼저 Riot 계정을 연동해주세요.");
+                    }
+
+                    RiotSummonerDto summonerDto = riotApiClient.getSummonerByRiotId(
+                            user.getSummonerName(), user.getTagLine());
+                    String puuid = summonerDto.getPuuid();
+
+                    log.info("Match {} not found in DB, fetching from Riot API for user: {}",
+                            matchId, user.getEmail());
+                    return matchService.fetchAndSaveMatch(puuid, matchId);
+                });
     }
 
     public Page<AnalysisResponse> getAnalysesByPuuid(String puuid, Pageable pageable) {
@@ -85,13 +110,14 @@ public class AnalysisService {
     }
 
     @Transactional
-    public AnalysisResponse createAnalysis(AnalysisCreateRequest request, String tier) {
-        Match match = matchRepository.findById(request.getMatchId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+    public AnalysisResponse createAnalysis(AnalysisCreateRequest request, User user) {
+        String matchId = request.getMatchId();
 
-        if (analysisRepository.existsByMatchId(request.getMatchId())) {
+        if (analysisRepository.existsByMatch_MatchId(matchId)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "Analysis already exists for this match");
         }
+
+        Match match = getOrFetchMatch(matchId, user);
 
         Analysis analysis = Analysis.builder()
                 .match(match)
@@ -101,8 +127,9 @@ public class AnalysisService {
         analysis = analysisRepository.save(analysis);
 
         // 비동기로 AI 서버에 분석 요청
+        String tier = (user.getTier() != null) ? user.getTier() : "UNRANKED";
         requestAiAnalysis(analysis.getId(), match, tier);
-        log.info("Analysis creation initiated for match: {}", request.getMatchId());
+        log.info("Analysis creation initiated for match: {}", matchId);
 
         return AnalysisResponse.from(analysis);
     }

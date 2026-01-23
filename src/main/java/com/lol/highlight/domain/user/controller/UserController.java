@@ -31,7 +31,7 @@ public class UserController {
             ErrorCode.USER_NOT_FOUND
     })
     @GetMapping("/me")
-    public ApiResponse<UserResponse> getCurrentUser(@AuthUser User user) {
+    public ApiResponse<UserResponse> getCurrentUser(@Parameter(hidden = true) @AuthUser User user) {
         return ApiResponse.success("현재 사용자 정보 조회 성공", UserResponse.from(user));
     }
 
@@ -55,7 +55,7 @@ public class UserController {
     })
     @PutMapping
     public ApiResponse<UserResponse> updateUser(
-            @AuthUser User user,
+            @Parameter(hidden = true) @AuthUser User user,
             @Valid @RequestBody UserUpdateRequest request) {
         UserResponse userResponse = userService.updateUser(user.getId(), request);
         return ApiResponse.success("사용자 정보 수정 성공", userResponse);
@@ -70,7 +70,7 @@ public class UserController {
     })
     @PostMapping("/link-riot")
     public ApiResponse<UserResponse> linkRiotAccount(
-            @AuthUser User user,
+            @Parameter(hidden = true) @AuthUser User user,
             @Valid @RequestBody RiotAccountLinkRequest request) {
         UserResponse userResponse = userService.linkRiotAccount(user.getId(), request);
         return ApiResponse.success("Riot 계정 연동 성공", userResponse);
@@ -82,7 +82,7 @@ public class UserController {
             ErrorCode.AUTHENTICATION_REQUIRED
     })
     @DeleteMapping
-    public ApiResponse<Void> deleteUser(@AuthUser User user) {
+    public ApiResponse<Void> deleteUser(@Parameter(hidden = true) @AuthUser User user) {
         userService.deleteUser(user.getId());
         return ApiResponse.success("사용자 삭제 성공");
     }
