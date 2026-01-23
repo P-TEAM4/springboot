@@ -37,7 +37,7 @@ public class AnalysisController {
         return ApiResponse.success(analysis);
     }
 
-    @Operation(summary = "매치의 분석 조회", description = "특정 매치에 대한 분석 정보를 조회합니다. 분석이 없으면 자동으로 생성하고 AI 분석을 요청합니다.")
+    @Operation(summary = "매치의 분석 조회", description = "특정 매치에 대한 분석 정보를 조회합니다. 분석이 없으면 자동으로 생성하고 AI 분석을 요청합니다. DB에 매치가 없으면 Riot API에서 가져옵니다.")
     @ApiErrorExamples({
             ErrorCode.MATCH_NOT_FOUND,
             ErrorCode.ANALYSIS_NOT_FOUND,
@@ -45,9 +45,9 @@ public class AnalysisController {
     })
     @GetMapping("/match/{matchId}")
     public ApiResponse<AnalysisResponse> getAnalysisByMatch(
-            @AuthUser User user,
-            @Parameter(description = "매치 ID", required = true) @PathVariable Long matchId) {
-        AnalysisResponse analysis = analysisService.getAnalysisByMatchId(matchId, user.getTier());
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "Riot 매치 ID (예: KR_7411234)", required = true) @PathVariable String matchId) {
+        AnalysisResponse analysis = analysisService.getAnalysisByMatchId(matchId, user);
         return ApiResponse.success(analysis);
     }
 
@@ -63,7 +63,7 @@ public class AnalysisController {
         return ApiResponse.success(analyses);
     }
 
-    @Operation(summary = "경기 분석 생성", description = "새로운 경기 분석을 생성합니다.")
+    @Operation(summary = "경기 분석 생성", description = "새로운 경기 분석을 생성합니다. DB에 매치가 없으면 Riot API에서 가져옵니다.")
     @ApiErrorExamples({
             ErrorCode.MATCH_NOT_FOUND,
             ErrorCode.INVALID_INPUT_VALUE,
@@ -72,9 +72,9 @@ public class AnalysisController {
     })
     @PostMapping
     public ApiResponse<AnalysisResponse> createAnalysis(
-            @AuthUser User user,
+            @Parameter(hidden = true) @AuthUser User user,
             @Valid @RequestBody AnalysisCreateRequest request) {
-        AnalysisResponse analysis = analysisService.createAnalysis(request, user.getTier());
+        AnalysisResponse analysis = analysisService.createAnalysis(request, user);
         return ApiResponse.success(analysis);
     }
 
