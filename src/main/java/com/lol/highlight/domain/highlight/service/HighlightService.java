@@ -2,6 +2,7 @@ package com.lol.highlight.domain.highlight.service;
 
 import com.lol.highlight.domain.highlight.dto.HighlightCreateRequest;
 import com.lol.highlight.domain.highlight.dto.HighlightResponse;
+import com.lol.highlight.domain.highlight.dto.ai.HighlightGenerateRequest;
 import com.lol.highlight.domain.highlight.entity.Highlight;
 import com.lol.highlight.domain.highlight.enums.HighlightStatus;
 import com.lol.highlight.domain.highlight.repository.HighlightRepository;
@@ -16,9 +17,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+/**
+ * 하이라이트 관리 서비스
+ *
+ * TODO: [FastAPI 연동]
+ * AiHighlightClient를 통해 FastAPI 서버와 통신합니다.
+ * 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class HighlightService {
 
     private final HighlightRepository highlightRepository;
     private final MatchRepository matchRepository;
+    private final AiHighlightClient aiHighlightClient;
 
     public HighlightResponse getHighlightById(Long id) {
         Highlight highlight = highlightRepository.findById(id)
@@ -44,6 +50,14 @@ public class HighlightService {
                 .map(HighlightResponse::from);
     }
 
+    /**
+     * 하이라이트를 생성합니다.
+     * PENDING 상태로 저장 후 FastAPI 서버에 비동기 영상 생성 요청을 보냅니다.
+     *
+     * TODO: [FastAPI 연동]
+     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
+     */
     @Transactional
     public HighlightResponse createHighlight(HighlightCreateRequest request) {
         Match match = matchRepository.findById(request.getMatchId())
@@ -64,18 +78,37 @@ public class HighlightService {
 
         highlight = highlightRepository.save(highlight);
 
-        // TODO: 비동기로 AI 서버에 하이라이트 영상 생성 요청
-        log.info("Highlight creation initiated for match: {}", request.getMatchId());
+        // FastAPI 서버에 비동기로 하이라이트 영상 생성 요청
+        HighlightGenerateRequest generateRequest = HighlightGenerateRequest.builder()
+                .matchId(match.getMatchId())
+                .highlightId(highlight.getId())
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .puuid(match.getPuuid())
+                .build();
+
+        aiHighlightClient.requestHighlightGeneration(highlight.getId(), generateRequest);
+        log.info("Highlight creation initiated for match: {}, highlightId: {}",
+                request.getMatchId(), highlight.getId());
 
         return HighlightResponse.from(highlight);
     }
 
+    /**
+     * AI를 통해 매치의 주요 장면을 자동으로 분석하여 하이라이트를 생성합니다.
+     *
+     * TODO: [FastAPI 연동]
+     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
+     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
+     * - AI가 킬/타워/오브젝트 등 주요 장면을 자동 추출합니다.
+     */
     @Transactional
     public void generateAutoHighlights(Long matchId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
-        // TODO: AI 서버를 통해 자동으로 하이라이트 추출
+        // FastAPI 서버에 비동기로 자동 하이라이트 추출 요청
+        aiHighlightClient.requestAutoHighlightGeneration(matchId);
         log.info("Auto highlight generation initiated for match: {}", matchId);
     }
 

@@ -39,6 +39,12 @@ public enum ErrorCode {
     ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "Analysis not found"),
     ANALYSIS_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "A002", "Analysis processing error"),
 
+    // AI Server
+    AI_SERVER_CONNECTION_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "AI001", "AI server connection failed"),
+    AI_SERVER_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AI002", "AI server request timed out"),
+    AI_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI003", "AI server returned an error"),
+    AI_ANALYSIS_IN_PROGRESS(HttpStatus.ACCEPTED, "AI004", "AI analysis is in progress"),
+
     // Auth
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH001", "Unauthorized"),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH002", "Invalid token"),

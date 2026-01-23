@@ -72,6 +72,14 @@ public class Highlight extends BaseEntity {
         this.status = HighlightStatus.COMPLETED;
     }
 
+    public void updateVideoUrl(String videoUrl) {
+        this.videoUrl = videoUrl;
+    }
+
+    public void updateThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
     public void updateStatus(HighlightStatus status) {
         this.status = status;
     }
