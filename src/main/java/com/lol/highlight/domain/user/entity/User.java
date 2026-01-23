@@ -98,6 +98,23 @@ public class User extends BaseEntity {
         this.tagLine = tagLine;
     }
 
+    public void unlinkRiotAccount() {
+        this.riotId = null;
+        this.summonerName = null;
+        this.tagLine = null;
+        this.profileIconId = null;
+        this.summonerLevel = null;
+        this.tier = null;
+        this.rank = null;
+        this.leaguePoints = null;
+        this.wins = null;
+        this.losses = null;
+        this.winRate = null;
+        this.averageKda = null;
+        this.averageVisionScore = null;
+        this.averageCsPerMin = null;
+    }
+
     public void updateLastActivityAt() {
         this.lastActivityAt = LocalDateTime.now();
     }

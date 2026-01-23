@@ -1,10 +1,12 @@
 package com.lol.highlight.global.external.riot.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RiotLeagueDto {
 
     private String queueType;

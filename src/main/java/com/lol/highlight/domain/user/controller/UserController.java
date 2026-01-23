@@ -76,6 +76,19 @@ public class UserController {
         return ApiResponse.success("Riot 계정 연동 성공", userResponse);
     }
 
+    @Operation(summary = "Riot 계정 연동 해제", description = "현재 로그인한 사용자의 Riot 계정 연동을 해제합니다.")
+    @ApiErrorExamples({
+            ErrorCode.USER_NOT_FOUND,
+            ErrorCode.INVALID_INPUT_VALUE,
+            ErrorCode.AUTHENTICATION_REQUIRED
+    })
+    @DeleteMapping("/link-riot")
+    public ApiResponse<UserResponse> unlinkRiotAccount(
+            @Parameter(hidden = true) @AuthUser User user) {
+        UserResponse userResponse = userService.unlinkRiotAccount(user.getId());
+        return ApiResponse.success("Riot 계정 연동 해제 성공", userResponse);
+    }
+
     @Operation(summary = "사용자 삭제", description = "현재 로그인한 사용자의 계정을 삭제합니다.")
     @ApiErrorExamples({
             ErrorCode.USER_NOT_FOUND,
