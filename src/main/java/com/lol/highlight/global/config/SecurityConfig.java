@@ -18,7 +18,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Arrays;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -41,9 +44,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/health", "/h2-console/**",
                                 "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**",
-                                "/api/auth/refresh", "/api/auth/test-token",
+                                "/api/auth/google", "/api/auth/refresh", "/api/auth/test-token",
                                 "/oauth2/**", "/login/oauth2/**").permitAll()
                         .anyRequest().authenticated())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json;charset=UTF-8");
+                            new ObjectMapper().writeValue(response.getOutputStream(),
+                                    Map.of("success", false, "message", "인증이 필요합니다"));
+                        }))
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService))
