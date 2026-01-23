@@ -7,10 +7,15 @@ import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.domain.user.repository.UserRepository;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
+import com.lol.highlight.global.external.riot.client.RiotApiClient;
+import com.lol.highlight.global.external.riot.dto.RiotLeagueDto;
+import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -19,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RiotApiClient riotApiClient;
 
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
@@ -47,14 +53,52 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // TODO: Riot API를 통해 실제 계정 검증 필요
         String riotId = request.getSummonerName() + "#" + request.getTagLine();
 
         if (userRepository.existsByRiotId(riotId)) {
-            throw new BusinessException(ErrorCode.EMAIL_DUPLICATION, "This Riot account is already linked to another user");
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이미 다른 사용자에게 연동된 Riot 계정입니다");
         }
 
+        // Riot API로 계정 검증 및 정보 조회
+        RiotSummonerDto accountDto = riotApiClient.getSummonerByRiotId(
+                request.getSummonerName(), request.getTagLine());
+        String puuid = accountDto.getPuuid();
+
+        RiotSummonerDto summonerDto = riotApiClient.getSummonerByPuuid(puuid);
+
         user.linkRiotAccount(riotId, request.getSummonerName(), request.getTagLine());
+
+        // 소환사 정보 업데이트 (프로필 아이콘, 레벨, 랭크 정보)
+        String tier = null;
+        String rank = null;
+        Integer leaguePoints = null;
+        Integer wins = null;
+        Integer losses = null;
+
+        try {
+            List<RiotLeagueDto> leagueEntries = riotApiClient.getLeagueBySummonerId(summonerDto.getId());
+            if (leagueEntries != null && !leagueEntries.isEmpty()) {
+                // 솔로 랭크 우선, 없으면 첫 번째 엔트리 사용
+                RiotLeagueDto soloRank = leagueEntries.stream()
+                        .filter(e -> "RANKED_SOLO_5x5".equals(e.getQueueType()))
+                        .findFirst()
+                        .orElse(leagueEntries.get(0));
+
+                tier = soloRank.getTier();
+                rank = soloRank.getRank();
+                leaguePoints = soloRank.getLeaguePoints();
+                wins = soloRank.getWins();
+                losses = soloRank.getLosses();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch league info for summoner: {}", summonerDto.getId(), e);
+        }
+
+        user.updateSummonerInfo(
+                summonerDto.getProfileIconId(),
+                summonerDto.getSummonerLevel(),
+                tier, rank, leaguePoints, wins, losses
+        );
 
         return UserResponse.from(user);
     }
