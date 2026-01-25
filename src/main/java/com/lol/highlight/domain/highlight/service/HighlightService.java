@@ -40,8 +40,8 @@ public class HighlightService {
         return HighlightResponse.from(highlight);
     }
 
-    public Page<HighlightResponse> getMatchHighlights(Long matchId, Pageable pageable) {
-        return highlightRepository.findByMatchId(matchId, pageable)
+    public Page<HighlightResponse> getMatchHighlights(String matchId, Pageable pageable) {
+        return highlightRepository.findByMatch_MatchId(matchId, pageable)
                 .map(HighlightResponse::from);
     }
 
@@ -60,7 +60,7 @@ public class HighlightService {
      */
     @Transactional
     public HighlightResponse createHighlight(HighlightCreateRequest request) {
-        Match match = matchRepository.findById(request.getMatchId())
+        Match match = matchRepository.findByMatchId(request.getMatchId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
         Integer duration = request.getEndTime() - request.getStartTime();
@@ -103,8 +103,8 @@ public class HighlightService {
      * - AI가 킬/타워/오브젝트 등 주요 장면을 자동 추출합니다.
      */
     @Transactional
-    public void generateAutoHighlights(Long matchId) {
-        Match match = matchRepository.findById(matchId)
+    public void generateAutoHighlights(String matchId) {
+        Match match = matchRepository.findByMatchId(matchId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
         // FastAPI 서버에 비동기로 자동 하이라이트 추출 요청
