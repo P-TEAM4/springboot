@@ -180,8 +180,6 @@ public class MatchService {
                             .finalItems(playerData.getFinalItems())
                             .finalItemsInfo(itemInfoList)
                             .goldEarned(playerData.getGoldEarned())
-                            .itemBuild(convertItemBuild(playerData.getItemBuild()))
-                            .skillBuild(playerData.getSkillBuild())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -201,19 +199,6 @@ public class MatchService {
                 .players(players)
                 .teams(teams)
                 .build();
-    }
-
-    private List<MatchDetailResponse.ItemBuild> convertItemBuild(
-            List<com.lol.highlight.global.dto.CloudStorageResponse.ItemBuildData> itemBuildData) {
-        if (itemBuildData == null) {
-            return new ArrayList<>();
-        }
-        return itemBuildData.stream()
-                .map(data -> MatchDetailResponse.ItemBuild.builder()
-                        .itemId(data.getItemId())
-                        .timestamp(data.getTimestamp())
-                        .build())
-                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -336,8 +321,6 @@ public class MatchService {
                             .cs(p.getTotalMinionsKilled() + p.getNeutralMinionsKilled())
                             .finalItems(finalItems)
                             .goldEarned(p.getGoldEarned())
-                            .itemBuild(new ArrayList<>())
-                            .skillBuild(new ArrayList<>())
                             .build();
                 })
                 .collect(Collectors.toList());
