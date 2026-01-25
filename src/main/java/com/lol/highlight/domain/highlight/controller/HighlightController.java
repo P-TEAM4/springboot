@@ -42,7 +42,7 @@ public class HighlightController {
     })
     @GetMapping("/match/{matchId}")
     public ApiResponse<Page<HighlightResponse>> getMatchHighlights(
-            @Parameter(description = "매치 ID", required = true) @PathVariable Long matchId,
+            @Parameter(description = "Riot 매치 ID (예: KR_8031304127)", required = true) @PathVariable String matchId,
             @Parameter(description = "페이징 정보 (page, size, sort)") Pageable pageable) {
         Page<HighlightResponse> highlights = highlightService.getMatchHighlights(matchId, pageable);
         return ApiResponse.success(highlights);
@@ -83,7 +83,7 @@ public class HighlightController {
     })
     @PostMapping("/match/{matchId}/auto-generate")
     public ApiResponse<Void> generateAutoHighlights(
-            @Parameter(description = "매치 ID", required = true) @PathVariable Long matchId) {
+            @Parameter(description = "Riot 매치 ID (예: KR_8031304127)", required = true) @PathVariable String matchId) {
         highlightService.generateAutoHighlights(matchId);
         return ApiResponse.accepted();
     }

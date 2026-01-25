@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class HighlightCreateRequest {
 
-    @NotNull(message = "Match ID is required")
-    private Long matchId;
+    @NotBlank(message = "Match ID is required")
+    private String matchId;
 
     @NotBlank(message = "Title is required")
     private String title;

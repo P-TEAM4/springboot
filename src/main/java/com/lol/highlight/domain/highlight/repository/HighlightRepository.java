@@ -15,14 +15,14 @@ import java.util.List;
 @Repository
 public interface HighlightRepository extends JpaRepository<Highlight, Long> {
 
-    Page<Highlight> findByMatchId(Long matchId, Pageable pageable);
+    Page<Highlight> findByMatch_MatchId(String matchId, Pageable pageable);
 
-    List<Highlight> findByMatchIdAndStatus(Long matchId, HighlightStatus status);
+    List<Highlight> findByMatch_MatchIdAndStatus(String matchId, HighlightStatus status);
 
     @Query("SELECT h FROM Highlight h WHERE h.match.puuid = :puuid")
     Page<Highlight> findByPuuid(@Param("puuid") String puuid, Pageable pageable);
 
-    List<Highlight> findByMatchIdAndType(Long matchId, HighlightType type);
+    List<Highlight> findByMatch_MatchIdAndType(String matchId, HighlightType type);
 
     @Query("SELECT h FROM Highlight h WHERE h.match.puuid = :puuid AND h.status = :status")
     List<Highlight> findByPuuidAndStatus(@Param("puuid") String puuid, @Param("status") HighlightStatus status);

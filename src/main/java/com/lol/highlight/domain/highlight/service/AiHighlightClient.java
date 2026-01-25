@@ -95,14 +95,14 @@ public class AiHighlightClient {
     /**
      * AI 자동 하이라이트 추출 요청 (비동기)
      *
-     * @param matchId 매치 ID (DB ID)
+     * @param matchId Riot 매치 ID (예: KR_8031304127)
      */
     @Async
     @Transactional
-    public void requestAutoHighlightGeneration(Long matchId) {
+    public void requestAutoHighlightGeneration(String matchId) {
         log.info("Requesting auto highlight generation for match ID: {}", matchId);
 
-        Match match = matchRepository.findById(matchId)
+        Match match = matchRepository.findByMatchId(matchId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
         AutoHighlightRequest request = AutoHighlightRequest.builder()
@@ -224,7 +224,7 @@ public class AiHighlightClient {
 
     // ===== 에러 핸들러 (매치 전체 자동 생성용) =====
 
-    private void handleConnectionErrorForMatch(Long matchId, ResourceAccessException e) {
+    private void handleConnectionErrorForMatch(String matchId, ResourceAccessException e) {
         Throwable cause = e.getCause();
 
         if (cause instanceof ConnectException) {
@@ -236,11 +236,11 @@ public class AiHighlightClient {
         }
     }
 
-    private void handleRestClientErrorForMatch(Long matchId, RestClientException e) {
+    private void handleRestClientErrorForMatch(String matchId, RestClientException e) {
         log.error("AI 서버 요청 오류. Match ID: {}", matchId, e);
     }
 
-    private void handleUnexpectedErrorForMatch(Long matchId, Exception e) {
+    private void handleUnexpectedErrorForMatch(String matchId, Exception e) {
         log.error("자동 하이라이트 생성 중 예상치 못한 오류 발생. Match ID: {}", matchId, e);
     }
 }
