@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class HighlightResponse {
 
     private Long id;
-    private Long matchId;
+    private String matchId;
     private String title;
     private String description;
     private String videoUrl;
@@ -29,7 +29,7 @@ public class HighlightResponse {
     public static HighlightResponse from(Highlight highlight) {
         return HighlightResponse.builder()
                 .id(highlight.getId())
-                .matchId(highlight.getMatch().getId())
+                .matchId(highlight.getMatch().getMatchId())
                 .title(highlight.getTitle())
                 .description(highlight.getDescription())
                 .videoUrl(highlight.getVideoUrl())
