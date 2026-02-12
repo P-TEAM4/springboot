@@ -17,6 +17,7 @@ public class UserResponse {
     private String name;
     private String profileImage;
     private String riotId;
+    private String puuid;
     private String summonerName;
     private String tagLine;
     private Integer profileIconId;
@@ -45,6 +46,7 @@ public class UserResponse {
                 .name(user.getName())
                 .profileImage(user.getProfileImage())
                 .riotId(user.getRiotId())
+                .puuid(user.getPuuid())
                 .summonerName(user.getSummonerName())
                 .tagLine(user.getTagLine())
                 .profileIconId(user.getProfileIconId())
