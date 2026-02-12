@@ -66,7 +66,7 @@ public class UserService {
 
         RiotSummonerDto summonerDto = riotApiClient.getSummonerByPuuid(puuid);
 
-        user.linkRiotAccount(riotId, request.getSummonerName(), request.getTagLine());
+        user.linkRiotAccount(riotId, puuid, request.getSummonerName(), request.getTagLine());
 
         // 소환사 정보 업데이트 (프로필 아이콘, 레벨, 랭크 정보)
         String tier = null;
