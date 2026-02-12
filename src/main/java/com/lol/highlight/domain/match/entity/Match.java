@@ -47,11 +47,22 @@ public class Match extends BaseEntity {
 
     private String detailDataUrl;
 
+    // 아이템 정보
+    private Integer item0;
+    private Integer item1;
+    private Integer item2;
+    private Integer item3;
+    private Integer item4;
+    private Integer item5;
+    private Integer item6;
+
     @Builder
     public Match(String puuid, String matchId, String championName, Integer kills,
                 Integer deaths, Integer assists, Double kda, Boolean win,
                 Integer gameDuration, Long gameCreation, MatchStatus status,
-                String timelineData, String detailDataUrl) {
+                String timelineData, String detailDataUrl,
+                Integer item0, Integer item1, Integer item2, Integer item3,
+                Integer item4, Integer item5, Integer item6) {
         this.puuid = puuid;
         this.matchId = matchId;
         this.championName = championName;
@@ -65,6 +76,13 @@ public class Match extends BaseEntity {
         this.status = status != null ? status : MatchStatus.PENDING;
         this.timelineData = timelineData;
         this.detailDataUrl = detailDataUrl;
+        this.item0 = item0;
+        this.item1 = item1;
+        this.item2 = item2;
+        this.item3 = item3;
+        this.item4 = item4;
+        this.item5 = item5;
+        this.item6 = item6;
     }
 
     public void updateMatchData(String championName, Integer kills, Integer deaths,

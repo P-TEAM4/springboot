@@ -235,6 +235,13 @@ public class MatchService {
                 .gameCreation(riotMatch.getInfo().getGameCreation())
                 .status(MatchStatus.COMPLETED)
                 .detailDataUrl(detailDataUrl)
+                .item0(playerData.getItem0())
+                .item1(playerData.getItem1())
+                .item2(playerData.getItem2())
+                .item3(playerData.getItem3())
+                .item4(playerData.getItem4())
+                .item5(playerData.getItem5())
+                .item6(playerData.getItem6())
                 .build();
 
         return matchRepository.save(match);
@@ -291,6 +298,13 @@ public class MatchService {
                 .gameCreation(riotMatch.getInfo().getGameCreation())
                 .status(MatchStatus.COMPLETED)
                 .detailDataUrl(detailDataUrl)
+                .item0(playerData.getItem0())
+                .item1(playerData.getItem1())
+                .item2(playerData.getItem2())
+                .item3(playerData.getItem3())
+                .item4(playerData.getItem4())
+                .item5(playerData.getItem5())
+                .item6(playerData.getItem6())
                 .build();
 
         matchRepository.save(match);
