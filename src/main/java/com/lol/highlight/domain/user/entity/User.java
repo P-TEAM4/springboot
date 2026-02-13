@@ -28,6 +28,9 @@ public class User extends BaseEntity {
     @Column(unique = true)
     private String riotId;
 
+    @Column(unique = true)
+    private String puuid;
+
     private String summonerName;
 
     private String tagLine;
@@ -92,14 +95,16 @@ public class User extends BaseEntity {
         this.profileImage = profileImage;
     }
 
-    public void linkRiotAccount(String riotId, String summonerName, String tagLine) {
+    public void linkRiotAccount(String riotId, String puuid, String summonerName, String tagLine) {
         this.riotId = riotId;
+        this.puuid = puuid;
         this.summonerName = summonerName;
         this.tagLine = tagLine;
     }
 
     public void unlinkRiotAccount() {
         this.riotId = null;
+        this.puuid = null;
         this.summonerName = null;
         this.tagLine = null;
         this.profileIconId = null;
