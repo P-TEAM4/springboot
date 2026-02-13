@@ -81,10 +81,14 @@ public class RiotApiClient {
     }
 
     public List<String> getMatchIdsByPuuid(String puuid, int count) {
-        String url = String.format("%s/lol/match/v5/matches/by-puuid/%s/ids?start=0&count=%d",
-                asiaUrl, puuid, count);
+        return getMatchIdsByPuuid(puuid, 0, count);
+    }
 
-        log.info("Fetching match IDs by PUUID: {}, count: {}", puuid, count);
+    public List<String> getMatchIdsByPuuid(String puuid, int start, int count) {
+        String url = String.format("%s/lol/match/v5/matches/by-puuid/%s/ids?start=%d&count=%d",
+                asiaUrl, puuid, start, count);
+
+        log.info("Fetching match IDs by PUUID: {}, start: {}, count: {}", puuid, start, count);
 
         ResponseEntity<List<String>> response = restTemplate.exchange(
                 url,
