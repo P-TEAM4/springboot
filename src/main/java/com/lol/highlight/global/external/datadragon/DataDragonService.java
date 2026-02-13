@@ -1,10 +1,13 @@
 package com.lol.highlight.global.external.datadragon;
 
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
+import com.lol.highlight.global.external.datadragon.entity.DataDragonVersion;
+import com.lol.highlight.global.external.datadragon.repository.DataDragonVersionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +19,7 @@ import java.util.Map;
 public class DataDragonService {
 
     private final DataDragonClient dataDragonClient;
+    private final DataDragonVersionRepository versionRepository;
 
     /**
      * 아이템 ID 리스트를 받아서 아이템 정보 리스트 반환
@@ -104,7 +108,7 @@ public class DataDragonService {
      */
     private String extractPatchVersion(String gameVersion) {
         if (gameVersion == null || gameVersion.isEmpty()) {
-            return dataDragonClient.getLatestVersion();
+            return getActiveVersion();
         }
 
         String[] parts = gameVersion.split("\\.");
@@ -112,5 +116,57 @@ public class DataDragonService {
             return parts[0] + "." + parts[1];
         }
         return gameVersion;
+    }
+
+    /**
+     * 현재 활성화된 Data Dragon 버전 조회
+     */
+    public String getActiveVersion() {
+        return versionRepository.findByIsActiveTrue()
+                .map(DataDragonVersion::getVersion)
+                .orElseGet(() -> {
+                    log.warn("No active Data Dragon version found, fetching from API");
+                    return dataDragonClient.getLatestVersion();
+                });
+    }
+
+    /**
+     * Data Dragon 버전 업데이트 (스케줄러에서 호출)
+     */
+    @Transactional
+    public void updateDataDragonVersion() {
+        try {
+            String latestVersion = dataDragonClient.getLatestVersion();
+            log.info("Fetched latest Data Dragon version: {}", latestVersion);
+
+            // 기존 활성 버전 비활성화
+            versionRepository.findByIsActiveTrue().ifPresent(DataDragonVersion::deactivate);
+
+            // 새 버전이 이미 존재하는지 확인
+            DataDragonVersion version = versionRepository.findByVersion(latestVersion)
+                    .orElseGet(() -> DataDragonVersion.builder()
+                            .version(latestVersion)
+                            .isActive(false)
+                            .build());
+
+            // 활성화 및 저장
+            version.activate();
+            versionRepository.save(version);
+
+            log.info("Data Dragon version updated to: {}", latestVersion);
+        } catch (Exception e) {
+            log.error("Failed to update Data Dragon version", e);
+        }
+    }
+
+    /**
+     * 초기 Data Dragon 버전 설정 (애플리케이션 시작 시 호출)
+     */
+    @Transactional
+    public void initializeDataDragonVersion() {
+        if (versionRepository.findByIsActiveTrue().isEmpty()) {
+            log.info("No active Data Dragon version found, initializing...");
+            updateDataDragonVersion();
+        }
     }
 }
