@@ -64,7 +64,7 @@ class UserTest {
                 .build();
 
         // when
-        user.linkRiotAccount("newRiot#KR1", "NewSummoner", "KR1");
+        user.linkRiotAccount("newRiot#KR1", "test-puuid-12345", "NewSummoner", "KR1");
 
         // then
         assertThat(user.getRiotId()).isEqualTo("newRiot#KR1");
