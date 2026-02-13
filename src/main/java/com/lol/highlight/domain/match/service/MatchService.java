@@ -326,6 +326,7 @@ public class MatchService {
                 .item4(playerData.getItem4())
                 .item5(playerData.getItem5())
                 .item6(playerData.getItem6())
+                .gameVersion(riotMatch.getInfo().getGameVersion())
                 .build();
 
         return matchRepository.save(match);
@@ -423,6 +424,7 @@ public class MatchService {
                 .item4(playerData.getItem4())
                 .item5(playerData.getItem5())
                 .item6(playerData.getItem6())
+                .gameVersion(riotMatch.getInfo().getGameVersion())
                 .build();
 
         matchRepository.save(match);

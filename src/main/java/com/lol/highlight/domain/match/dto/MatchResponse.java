@@ -30,6 +30,7 @@ public class MatchResponse {
     private Integer item4;
     private Integer item5;
     private Integer item6;
+    private String gameVersion;
 
     public static MatchResponse from(Match match) {
         return MatchResponse.builder()
@@ -52,6 +53,7 @@ public class MatchResponse {
                 .item4(match.getItem4())
                 .item5(match.getItem5())
                 .item6(match.getItem6())
+                .gameVersion(match.getGameVersion())
                 .build();
     }
 }
