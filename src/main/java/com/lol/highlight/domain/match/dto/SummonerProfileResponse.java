@@ -12,4 +12,5 @@ public class SummonerProfileResponse {
     private String profileIconUrl;
     private LeagueInfoDto soloLeague;
     private LeagueInfoDto flexLeague;
+    private RecentStatsDto recentStats;  // 최근 20경기 통계
 }

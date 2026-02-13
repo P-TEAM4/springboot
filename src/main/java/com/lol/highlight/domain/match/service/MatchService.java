@@ -203,7 +203,10 @@ public class MatchService {
                     summonerDto.getProfileIconId()
             );
 
-            // 6. 응답 DTO 생성
+            // 6. 최근 20경기 통계 계산
+            com.lol.highlight.domain.match.dto.RecentStatsDto recentStats = calculateRecentStats(puuid);
+
+            // 7. 응답 DTO 생성
             return SummonerProfileResponse.builder()
                     .gameName(gameName)
                     .tagLine(tagLine)
@@ -211,6 +214,7 @@ public class MatchService {
                     .profileIconUrl(profileIconUrl)
                     .soloLeague(soloLeague)
                     .flexLeague(flexLeague)
+                    .recentStats(recentStats)
                     .build();
 
         } catch (Exception e) {
@@ -452,5 +456,51 @@ public class MatchService {
             return (kills != null ? kills : 0) + (assists != null ? assists : 0) * 1.0;
         }
         return ((kills != null ? kills : 0) + (assists != null ? assists : 0)) / (double) deaths;
+    }
+
+    private com.lol.highlight.domain.match.dto.RecentStatsDto calculateRecentStats(String puuid) {
+        // 최근 20경기 조회
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Match> recentMatches = matchRepository.findByPuuidOrderByGameCreationDesc(puuid, pageable);
+        List<Match> matches = recentMatches.getContent();
+
+        if (matches.isEmpty()) {
+            // 경기 데이터가 없으면 null 반환
+            return null;
+        }
+
+        int totalGames = matches.size();
+        int wins = 0;
+        int totalKills = 0;
+        int totalDeaths = 0;
+        int totalAssists = 0;
+
+        for (Match match : matches) {
+            if (Boolean.TRUE.equals(match.getWin())) {
+                wins++;
+            }
+            totalKills += match.getKills() != null ? match.getKills() : 0;
+            totalDeaths += match.getDeaths() != null ? match.getDeaths() : 0;
+            totalAssists += match.getAssists() != null ? match.getAssists() : 0;
+        }
+
+        int losses = totalGames - wins;
+        String winRate = String.format("%.0f", (wins * 100.0 / totalGames));
+
+        // 평균 KDA 계산
+        double averageKda;
+        if (totalDeaths == 0) {
+            averageKda = totalKills + totalAssists;
+        } else {
+            averageKda = (totalKills + totalAssists) / (double) totalDeaths;
+        }
+
+        return com.lol.highlight.domain.match.dto.RecentStatsDto.builder()
+                .totalGames(totalGames)
+                .wins(wins)
+                .losses(losses)
+                .winRate(winRate)
+                .averageKda(Math.round(averageKda * 100.0) / 100.0) // 소수점 2자리
+                .build();
     }
 }
