@@ -2,6 +2,8 @@ package com.lol.highlight.domain.match.controller;
 
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
 import com.lol.highlight.domain.match.dto.MatchResponse;
+import com.lol.highlight.domain.match.dto.MatchesWithProfileResponse;
+import com.lol.highlight.domain.match.dto.SummonerProfileResponse;
 import com.lol.highlight.domain.match.service.MatchService;
 import com.lol.highlight.global.common.ApiResponse;
 import com.lol.highlight.global.common.annotation.ApiErrorExamples;
@@ -24,7 +26,7 @@ public class MatchController {
 
     private final MatchService matchService;
 
-    @Operation(summary = "소환사 전적 조회", description = "롤 소환사의 전적을 조회합니다. DB에 없으면 Riot API에서 가져옵니다. Rate Limit이 적용됩니다.")
+    @Operation(summary = "소환사 전적 조회 (프로필 포함)", description = "롤 소환사의 전적과 프로필 정보를 함께 조회합니다. DB에 없으면 Riot API에서 가져옵니다. Rate Limit이 적용됩니다.")
     @ApiErrorExamples({
             ErrorCode.USER_NOT_FOUND,
             ErrorCode.RATE_LIMIT_EXCEEDED,
@@ -32,7 +34,7 @@ public class MatchController {
             ErrorCode.AUTHENTICATION_REQUIRED
     })
     @GetMapping("/summoner/{gameName}/{tagLine}")
-    public ApiResponse<Page<MatchResponse>> getMatches(
+    public ApiResponse<MatchesWithProfileResponse> getMatches(
             @Parameter(description = "소환사 이름", required = true) @PathVariable String gameName,
             @Parameter(description = "태그 라인", required = true) @PathVariable String tagLine,
             @AuthenticationPrincipal UserDetails userDetails,
@@ -40,14 +42,14 @@ public class MatchController {
 
         Long requestUserId = Long.parseLong(userDetails.getUsername());
 
-        Page<MatchResponse> matches = matchService.getMatchesBySummonerName(
+        MatchesWithProfileResponse response = matchService.getMatchesBySummonerName(
                 requestUserId,
                 gameName,
                 tagLine,
                 pageable
         );
 
-        return ApiResponse.success(matches);
+        return ApiResponse.success(response);
     }
 
     @Operation(summary = "전적 강제 갱신", description = "명시적으로 Riot API에서 최신 전적을 가져옵니다. Rate Limit이 적용됩니다.")
