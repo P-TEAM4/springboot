@@ -142,16 +142,18 @@ public class MatchService {
         RiotSummonerDto summonerDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
         String targetPuuid = summonerDto.getPuuid();
 
-        // 4. 강제 갱신
-        refreshMatches(targetPuuid);
-        cleanupOldMatches(targetPuuid);
+        // 4. 현재 DB에 있는 전적 개수 확인
+        long currentMatchCount = matchRepository.countByPuuid(targetPuuid);
 
-        // 5. Rate Limit 기록
+        // 5. DB에 있는 전적 이후부터 추가로 가져오기
+        loadMoreMatches(targetPuuid, (int) currentMatchCount);
+
+        // 6. Rate Limit 기록
         requestUser.recordRefresh(refreshProperties.getWindowMinutes());
         requestUser.updateLastActivityAt();
         userRepository.save(requestUser);
 
-        log.info("Force refreshed matches for puuid: {} by user: {}", targetPuuid, requestUserId);
+        log.info("Loaded more matches for puuid: {} (starting from index: {}) by user: {}", targetPuuid, currentMatchCount, requestUserId);
     }
 
     @Transactional(readOnly = true)
@@ -350,6 +352,40 @@ public class MatchService {
         } catch (Exception e) {
             log.error("Failed to refresh matches for puuid: {}", puuid, e);
             throw new BusinessException(ErrorCode.EXTERNAL_API_ERROR, "전적 갱신에 실패했습니다");
+        }
+    }
+
+    private void loadMoreMatches(String puuid, int startIndex) {
+        try {
+            // startIndex부터 추가로 20개 가져오기
+            List<String> matchIds = riotApiClient.getMatchIdsByPuuid(puuid, startIndex, DEFAULT_MATCH_COUNT);
+
+            if (matchIds == null || matchIds.isEmpty()) {
+                log.info("No more matches available for puuid: {} from index: {}", puuid, startIndex);
+                return;
+            }
+
+            int newMatchCount = 0;
+            for (String matchId : matchIds) {
+                // DB에 이미 있으면 스킵
+                if (matchRepository.existsByMatchId(matchId)) {
+                    log.debug("Match already exists: {}", matchId);
+                    continue;
+                }
+
+                try {
+                    RiotMatchDto riotMatch = riotApiClient.getMatchById(matchId);
+                    saveMatch(puuid, riotMatch);
+                    newMatchCount++;
+                } catch (Exception e) {
+                    log.error("Failed to save match: {}", matchId, e);
+                }
+            }
+
+            log.info("Loaded {} new matches for puuid: {} (from index: {})", newMatchCount, puuid, startIndex);
+        } catch (Exception e) {
+            log.error("Failed to load more matches for puuid: {} from index: {}", puuid, startIndex, e);
+            throw new BusinessException(ErrorCode.EXTERNAL_API_ERROR, "추가 전적을 불러오는데 실패했습니다");
         }
     }
 
