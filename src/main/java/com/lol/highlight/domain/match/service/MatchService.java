@@ -1,8 +1,11 @@
 package com.lol.highlight.domain.match.service;
 
 import com.lol.highlight.domain.match.config.MatchRefreshProperties;
+import com.lol.highlight.domain.match.dto.LeagueInfoDto;
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
 import com.lol.highlight.domain.match.dto.MatchResponse;
+import com.lol.highlight.domain.match.dto.MatchesWithProfileResponse;
+import com.lol.highlight.domain.match.dto.SummonerProfileResponse;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.enums.MatchStatus;
 import com.lol.highlight.domain.match.repository.MatchRepository;
@@ -11,6 +14,7 @@ import com.lol.highlight.domain.user.repository.UserRepository;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
 import com.lol.highlight.global.external.riot.client.RiotApiClient;
+import com.lol.highlight.global.external.riot.dto.RiotLeagueDto;
 import com.lol.highlight.global.external.riot.dto.RiotMatchDto;
 import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
 import com.lol.highlight.global.service.CloudStorageService;
@@ -41,7 +45,7 @@ public class MatchService {
     private static final int DEFAULT_MATCH_COUNT = 20;
 
     @Transactional
-    public Page<MatchResponse> getMatchesBySummonerName(
+    public MatchesWithProfileResponse getMatchesBySummonerName(
             Long requestUserId,
             String gameName,
             String tagLine,
@@ -52,8 +56,8 @@ public class MatchService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 2. 조회 대상의 puuid 가져오기
-        RiotSummonerDto summonerDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
-        String targetPuuid = summonerDto.getPuuid();
+        RiotSummonerDto accountDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
+        String targetPuuid = accountDto.getPuuid();
 
         // 3. DB에 매치가 있는지 확인
         long matchCount = matchRepository.countByPuuid(targetPuuid);
@@ -108,7 +112,14 @@ public class MatchService {
                 unsortedPageable
         );
 
-        return matches.map(MatchResponse::from);
+        // 6. 프로필 정보 조회
+        SummonerProfileResponse profile = getSummonerProfile(gameName, tagLine);
+
+        // 7. 통합 응답 생성
+        return MatchesWithProfileResponse.builder()
+                .profile(profile)
+                .matches(matches.map(MatchResponse::from))
+                .build();
     }
 
     @Transactional
@@ -156,6 +167,73 @@ public class MatchService {
                 cloudStorageService.downloadMatchData(match.getDetailDataUrl());
 
         return convertToMatchDetailResponse(storageResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public SummonerProfileResponse getSummonerProfile(String gameName, String tagLine) {
+        try {
+            // 1. Riot ID로 계정 정보 가져오기 (puuid 얻기)
+            RiotSummonerDto accountDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
+            String puuid = accountDto.getPuuid();
+
+            // 2. puuid로 소환사 정보 가져오기 (레벨, 프로필 아이콘)
+            RiotSummonerDto summonerDto = riotApiClient.getSummonerByPuuid(puuid);
+
+            // 3. puuid로 리그 정보 가져오기 (티어, LP 등)
+            List<RiotLeagueDto> leagues = riotApiClient.getLeagueByPuuid(puuid);
+
+            // 4. 솔로랭크/자유랭크 분리
+            LeagueInfoDto soloLeague = leagues.stream()
+                    .filter(league -> "RANKED_SOLO_5x5".equals(league.getQueueType()))
+                    .findFirst()
+                    .map(this::convertToLeagueInfo)
+                    .orElse(LeagueInfoDto.unranked("RANKED_SOLO_5x5"));
+
+            LeagueInfoDto flexLeague = leagues.stream()
+                    .filter(league -> "RANKED_FLEX_SR".equals(league.getQueueType()))
+                    .findFirst()
+                    .map(this::convertToLeagueInfo)
+                    .orElse(LeagueInfoDto.unranked("RANKED_FLEX_SR"));
+
+            // 5. 프로필 아이콘 URL 생성
+            String currentVersion = dataDragonService.getActiveVersion();
+            String profileIconUrl = String.format(
+                    "https://ddragon.leagueoflegends.com/cdn/%s/img/profileicon/%d.png",
+                    currentVersion,
+                    summonerDto.getProfileIconId()
+            );
+
+            // 6. 응답 DTO 생성
+            return SummonerProfileResponse.builder()
+                    .gameName(gameName)
+                    .tagLine(tagLine)
+                    .summonerLevel(summonerDto.getSummonerLevel())
+                    .profileIconUrl(profileIconUrl)
+                    .soloLeague(soloLeague)
+                    .flexLeague(flexLeague)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Failed to get summoner profile: {}#{}", gameName, tagLine, e);
+            throw new BusinessException(ErrorCode.EXTERNAL_API_ERROR, "소환사 정보를 불러올 수 없습니다");
+        }
+    }
+
+    private LeagueInfoDto convertToLeagueInfo(RiotLeagueDto league) {
+        int totalGames = league.getWins() + league.getLosses();
+        String winRate = totalGames > 0
+                ? String.format("%.0f", (league.getWins() * 100.0 / totalGames))
+                : "0";
+
+        return LeagueInfoDto.builder()
+                .queueType(league.getQueueType())
+                .tier(league.getTier())
+                .rank(league.getRank())
+                .leaguePoints(league.getLeaguePoints())
+                .wins(league.getWins())
+                .losses(league.getLosses())
+                .winRate(winRate)
+                .build();
     }
 
     private MatchDetailResponse convertToMatchDetailResponse(
