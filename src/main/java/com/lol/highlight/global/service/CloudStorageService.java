@@ -32,6 +32,57 @@ public class CloudStorageService {
     @Value("${gcp.storage.match-data-prefix:match-data}")
     private String matchDataPrefix;
 
+    @Value("${gcp.storage.profile-image-prefix:profile-images}")
+    private String profileImagePrefix;
+
+    /**
+     * 프로필 이미지 업로드
+     * @param userId 사용자 ID
+     * @param imageBytes 이미지 바이트 데이터
+     * @param contentType 이미지 타입 (image/jpeg, image/png 등)
+     * @return 업로드된 이미지 URL
+     */
+    public String uploadProfileImage(Long userId, byte[] imageBytes, String contentType) {
+        try {
+            // 파일 확장자 추출
+            String extension = getExtensionFromContentType(contentType);
+            String objectName = String.format("%s/%s%s", profileImagePrefix, userId, extension);
+
+            BlobId blobId = BlobId.of(bucketName, objectName);
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                    .setContentType(contentType)
+                    .build();
+
+            storage.create(blobInfo, imageBytes);
+
+            String url = String.format("https://storage.googleapis.com/%s/%s", bucketName, objectName);
+            log.info("Successfully uploaded profile image to Cloud Storage: {}", url);
+
+            return url;
+
+        } catch (Exception e) {
+            log.error("Failed to upload profile image to Cloud Storage for userId: {}", userId, e);
+            throw new RuntimeException("Failed to upload profile image to Cloud Storage", e);
+        }
+    }
+
+    /**
+     * Content-Type에서 파일 확장자 추출
+     */
+    private String getExtensionFromContentType(String contentType) {
+        if (contentType == null) {
+            return ".jpg";
+        }
+        
+        return switch (contentType.toLowerCase()) {
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
+    }
+
     public String uploadMatchData(String matchId, MatchDetailResponse matchDetail) {
         try {
             // 게임 버전 추출 (예: 14.23.1.12345 -> 14.23)

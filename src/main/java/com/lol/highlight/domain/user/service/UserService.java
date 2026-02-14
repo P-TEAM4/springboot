@@ -10,6 +10,7 @@ import com.lol.highlight.global.exception.ErrorCode;
 import com.lol.highlight.global.external.riot.client.RiotApiClient;
 import com.lol.highlight.global.external.riot.dto.RiotLeagueDto;
 import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
+import com.lol.highlight.global.service.CloudStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RiotApiClient riotApiClient;
+    private final CloudStorageService cloudStorageService;
 
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
@@ -45,6 +47,33 @@ public class UserService {
 
         user.updateProfile(request.getName(), request.getProfileImage());
 
+        return UserResponse.from(user);
+    }
+
+    @Transactional
+    public UserResponse updateProfileImage(Long userId, byte[] imageBytes, String contentType, long fileSize) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 파일 검증
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "파일이 비어있습니다");
+        }
+
+        // 파일 타입 검증
+        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "JPEG 또는 PNG 형식의 이미지만 업로드 가능합니다");
+        }
+
+        // 파일 크기 검증 (5MB)
+        if (fileSize > 5 * 1024 * 1024) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "파일 크기는 5MB를 초과할 수 없습니다");
+        }
+
+        String imageUrl = cloudStorageService.uploadProfileImage(userId, imageBytes, contentType);
+        user.updateProfile(user.getName(), imageUrl);
+
+        log.info("Updated profile image for userId: {} to URL: {}", userId, imageUrl);
         return UserResponse.from(user);
     }
 
