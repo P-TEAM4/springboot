@@ -109,4 +109,4 @@ match:
   refresh:
     window-minutes: 3      # Rate Limit 윈도우 시간 (분)
     max-count: 5           # 윈도우 내 최대 갱신 횟수
-    keep-match-count: 40   # 유지할 최대 매치 개수
+    keep-match-count: 1000 # 유지할 최대 매치 개수 (무제한에 가깝게 설정)
