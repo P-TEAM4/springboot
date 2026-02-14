@@ -53,7 +53,9 @@ public class CloudStorageService {
                     .setContentType(contentType)
                     .build();
 
-            storage.create(blobInfo, imageBytes);
+            // 프로필 이미지는 공개 접근 허용 (Public Read ACL)
+            storage.create(blobInfo, imageBytes, 
+                    Storage.BlobTargetOption.predefinedAcl(Storage.PredefinedAcl.PUBLIC_READ));
 
             String url = String.format("https://storage.googleapis.com/%s/%s", bucketName, objectName);
             log.info("Successfully uploaded profile image to Cloud Storage: {}", url);
