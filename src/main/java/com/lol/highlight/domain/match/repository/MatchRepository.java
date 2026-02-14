@@ -34,4 +34,8 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     // TTL 관리용
     void deleteByCreatedAtBefore(LocalDateTime expiryDate);
+
+    // 모든 고유 puuid 조회
+    @Query("SELECT DISTINCT m.puuid FROM Match m")
+    java.util.List<String> findDistinctPuuids();
 }

@@ -94,9 +94,6 @@ public class MatchService {
             // Riot API 호출 및 저장
             refreshMatches(targetPuuid);
 
-            // 최근 N개만 유지
-            cleanupOldMatches(targetPuuid);
-
             // Rate Limit 기록
             requestUser.recordRefresh(refreshProperties.getWindowMinutes());
         }
@@ -156,19 +153,94 @@ public class MatchService {
         log.info("Loaded more matches for puuid: {} (starting from index: {}) by user: {}", targetPuuid, currentMatchCount, requestUserId);
     }
 
-    @Transactional(readOnly = true)
-    public MatchDetailResponse getMatchDetail(String matchId) {
-        Match match = matchRepository.findByMatchId(matchId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+    @Transactional
+    public void loadMoreMatchesFromIndex(Long requestUserId, String gameName, String tagLine, int startIndex) {
+        // 1. 사용자 확인
+        User requestUser = userRepository.findById(requestUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        if (match.getDetailDataUrl() == null) {
-            throw new IllegalStateException("Match detail data URL is not available");
+        // 2. Rate Limit 체크
+        if (!requestUser.canRefreshMatches(
+                refreshProperties.getMaxCount(),
+                refreshProperties.getWindowMinutes())) {
+            throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED,
+                    String.format("요청 제한을 초과했습니다. %d분에 %d번까지 가능합니다.",
+                            refreshProperties.getWindowMinutes(),
+                            refreshProperties.getMaxCount()));
         }
 
-        com.lol.highlight.global.dto.CloudStorageResponse storageResponse =
-                cloudStorageService.downloadMatchData(match.getDetailDataUrl());
+        // 3. PUUID 조회
+        RiotSummonerDto accountDto = riotApiClient.getSummonerByRiotId(gameName, tagLine);
+        String targetPuuid = accountDto.getPuuid();
 
-        return convertToMatchDetailResponse(storageResponse);
+        // 4. 추가 전적 로드
+        loadMoreMatches(targetPuuid, startIndex);
+
+        // 5. Rate Limit 기록
+        requestUser.recordRefresh(refreshProperties.getWindowMinutes());
+        requestUser.updateLastActivityAt();
+        userRepository.save(requestUser);
+
+        log.info("Loaded more matches from index {} for puuid: {} by user: {}", startIndex, targetPuuid, requestUserId);
+    }
+
+    @Transactional
+    public MatchDetailResponse getMatchDetail(String matchId) {
+        // 1. DB에서 Match 조회
+        Match match = matchRepository.findByMatchId(matchId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND, 
+                            "매치를 찾을 수 없습니다: " + matchId));
+
+        // 2. detailDataUrl 존재 확인
+        if (match.getDetailDataUrl() == null || match.getDetailDataUrl().isEmpty()) {
+            log.warn("Match {} has no detailDataUrl, fetching from Riot API", matchId);
+            return fetchAndStoreMatchDetail(match);
+        }
+
+        // 3. Cloud Storage에서 다운로드 시도
+        try {
+            com.lol.highlight.global.dto.CloudStorageResponse storageResponse =
+                    cloudStorageService.downloadMatchData(match.getDetailDataUrl());
+            return convertToMatchDetailResponse(storageResponse);
+            
+        } catch (Exception e) {
+            // 4. 파일 없으면 Riot API에서 재조회
+            log.warn("Cloud storage file missing for matchId={}, re-fetching from Riot API. Error: {}", 
+                     matchId, e.getMessage());
+            return fetchAndStoreMatchDetail(match);
+        }
+    }
+
+    /**
+     * Riot API에서 매치 상세 정보를 가져와 Cloud Storage에 저장
+     */
+    private MatchDetailResponse fetchAndStoreMatchDetail(Match match) {
+        try {
+            // Riot API 호출
+            RiotMatchDto riotMatch = riotApiClient.getMatchById(match.getMatchId());
+            
+            // MatchDetailResponse 변환
+            MatchDetailResponse detailResponse = convertToMatchDetail(riotMatch);
+            
+            // Cloud Storage에 업로드
+            String detailDataUrl = cloudStorageService.uploadMatchData(
+                match.getMatchId(), 
+                detailResponse
+            );
+            
+            // DB 업데이트
+            match.updateDetailDataUrl(detailDataUrl);
+            matchRepository.save(match);
+            
+            log.info("Re-uploaded match detail to cloud storage: {}", match.getMatchId());
+            
+            return detailResponse;
+            
+        } catch (Exception e) {
+            log.error("Failed to fetch and store match detail for matchId={}", match.getMatchId(), e);
+            throw new BusinessException(ErrorCode.EXTERNAL_API_ERROR, 
+                        "매치 상세 정보를 가져올 수 없습니다");
+        }
     }
 
     @Transactional(readOnly = true)
