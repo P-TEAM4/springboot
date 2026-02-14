@@ -431,12 +431,18 @@ public class MatchService {
     private void loadMoreMatches(String puuid, int startIndex) {
         try {
             // startIndex부터 추가로 20개 가져오기
+            log.info("Requesting matches from Riot API: puuid={}, startIndex={}, count={}", 
+                     puuid, startIndex, DEFAULT_MATCH_COUNT);
             List<String> matchIds = riotApiClient.getMatchIdsByPuuid(puuid, startIndex, DEFAULT_MATCH_COUNT);
 
             if (matchIds == null || matchIds.isEmpty()) {
-                log.info("No more matches available for puuid: {} from index: {}", puuid, startIndex);
+                log.warn("⚠️ No more matches available from Riot API: puuid={}, startIndex={}", 
+                         puuid, startIndex);
                 return;
             }
+            
+            log.info("✅ Riot API returned {} match IDs from startIndex {}", 
+                     matchIds.size(), startIndex);
 
             int newMatchCount = 0;
             for (String matchId : matchIds) {
