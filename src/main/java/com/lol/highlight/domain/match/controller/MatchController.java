@@ -72,6 +72,27 @@ public class MatchController {
         return ApiResponse.success("전적이 성공적으로 갱신되었습니다");
     }
 
+    @Operation(summary = "추가 전적 불러오기", description = "DB에 없는 추가 전적을 Riot API에서 가져옵니다. startIndex부터 20개를 가져옵니다.")
+    @ApiErrorExamples({
+            ErrorCode.USER_NOT_FOUND,
+            ErrorCode.RATE_LIMIT_EXCEEDED,
+            ErrorCode.EXTERNAL_API_ERROR,
+            ErrorCode.AUTHENTICATION_REQUIRED
+    })
+    @PostMapping("/summoner/{gameName}/{tagLine}/load-more")
+    public ApiResponse<Void> loadMoreMatches(
+            @Parameter(description = "소환사 이름", required = true) @PathVariable String gameName,
+            @Parameter(description = "태그 라인", required = true) @PathVariable String tagLine,
+            @Parameter(description = "시작 인덱스 (DB에 저장된 전적 개수)", required = true) @RequestParam int startIndex,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        Long requestUserId = Long.parseLong(userDetails.getUsername());
+
+        matchService.loadMoreMatchesFromIndex(requestUserId, gameName, tagLine, startIndex);
+
+        return ApiResponse.success("추가 전적이 성공적으로 로드되었습니다");
+    }
+
     @Operation(summary = "매치 상세 정보 조회", description = "Cloud Storage에서 매치 상세 데이터를 가져와 반환합니다.")
     @ApiErrorExamples({
             ErrorCode.MATCH_NOT_FOUND,
