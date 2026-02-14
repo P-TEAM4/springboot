@@ -96,6 +96,7 @@ gcp:
     project-id: ${GCP_PROJECT_ID:your-gcp-project-id}
     bucket: ${GCP_STORAGE_BUCKET:lol-highlight-bucket}
     match-data-prefix: match-data
+    profile-image-prefix: profile-images
 
 # Riot API 설정
 riot:

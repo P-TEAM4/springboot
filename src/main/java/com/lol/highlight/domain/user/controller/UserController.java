@@ -8,6 +8,7 @@ import com.lol.highlight.domain.user.service.UserService;
 import com.lol.highlight.global.auth.annotation.AuthUser;
 import com.lol.highlight.global.common.ApiResponse;
 import com.lol.highlight.global.common.annotation.ApiErrorExamples;
+import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.enums.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "User", description = "사용자 관리 API")
 @RestController
@@ -59,6 +61,34 @@ public class UserController {
             @Valid @RequestBody UserUpdateRequest request) {
         UserResponse userResponse = userService.updateUser(user.getId(), request);
         return ApiResponse.success("사용자 정보 수정 성공", userResponse);
+    }
+
+    @Operation(summary = "프로필 이미지 업로드", description = "현재 로그인한 사용자의 프로필 이미지를 업로드합니다. 이미지는 Cloud Storage에 저장됩니다.")
+    @ApiErrorExamples({
+            ErrorCode.USER_NOT_FOUND,
+            ErrorCode.INVALID_INPUT_VALUE,
+            ErrorCode.AUTHENTICATION_REQUIRED,
+            ErrorCode.IMAGE_FORMAT_NOT_SUPPORTED,
+            ErrorCode.IMAGE_SIZE_TOO_LARGE
+    })
+    @PostMapping("/profile-image")
+    public ApiResponse<UserResponse> uploadProfileImage(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "프로필 이미지 파일 (JPEG, PNG만 허용, 최대 5MB)", required = true)
+            @RequestParam("file") MultipartFile file) {
+        
+        try {
+            byte[] imageBytes = file.getBytes();
+            UserResponse userResponse = userService.updateProfileImage(
+                    user.getId(), 
+                    imageBytes, 
+                    file.getContentType(),
+                    file.getSize()
+            );
+            return ApiResponse.success("프로필 이미지 업로드 성공", userResponse);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Failed to read file", e);
+        }
     }
 
     @Operation(summary = "Riot 계정 연동", description = "현재 로그인한 사용자의 Riot 계정을 연동합니다.")
