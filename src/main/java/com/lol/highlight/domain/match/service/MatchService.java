@@ -1,13 +1,16 @@
 package com.lol.highlight.domain.match.service;
 
 import com.lol.highlight.domain.match.config.MatchRefreshProperties;
+import com.lol.highlight.domain.match.dto.ChampionStatsResponse;
 import com.lol.highlight.domain.match.dto.LeagueInfoDto;
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
 import com.lol.highlight.domain.match.dto.MatchResponse;
 import com.lol.highlight.domain.match.dto.MatchesWithProfileResponse;
 import com.lol.highlight.domain.match.dto.SummonerProfileResponse;
 import com.lol.highlight.domain.match.entity.Match;
+import com.lol.highlight.domain.match.entity.MatchBan;
 import com.lol.highlight.domain.match.enums.MatchStatus;
+import com.lol.highlight.domain.match.repository.MatchBanRepository;
 import com.lol.highlight.domain.match.repository.MatchRepository;
 import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.domain.user.repository.UserRepository;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 public class MatchService {
 
     private final MatchRepository matchRepository;
+    private final MatchBanRepository matchBanRepository;
     private final UserRepository userRepository;
     private final RiotApiClient riotApiClient;
     private final CloudStorageService cloudStorageService;
@@ -401,9 +405,12 @@ public class MatchService {
                 .item5(playerData.getItem5())
                 .item6(playerData.getItem6())
                 .gameVersion(riotMatch.getInfo().getGameVersion())
+                .position(mapPosition(playerData.getTeamPosition()))
                 .build();
 
-        return matchRepository.save(match);
+        matchRepository.save(match);
+        saveBans(matchId, riotMatch);
+        return matchRepository.findByMatchId(matchId).orElseThrow();
     }
 
     private void refreshMatches(String puuid) {
@@ -505,9 +512,11 @@ public class MatchService {
                 .item5(playerData.getItem5())
                 .item6(playerData.getItem6())
                 .gameVersion(riotMatch.getInfo().getGameVersion())
+                .position(mapPosition(playerData.getTeamPosition()))
                 .build();
 
         matchRepository.save(match);
+        saveBans(matchId, riotMatch);
     }
 
     @Transactional
@@ -567,6 +576,107 @@ public class MatchService {
                 .players(players)
                 .teams(teams)
                 .build();
+    }
+
+    private String mapPosition(String teamPosition) {
+        if (teamPosition == null) return null;
+        return switch (teamPosition) {
+            case "TOP" -> "TOP";
+            case "JUNGLE" -> "JUNGLE";
+            case "MIDDLE" -> "MID";
+            case "BOTTOM" -> "ADC";
+            case "UTILITY" -> "SUPPORT";
+            default -> null;
+        };
+    }
+
+    private void saveBans(String matchId, RiotMatchDto riotMatch) {
+        if (matchBanRepository.existsByMatchId(matchId)) return;
+        if (riotMatch.getInfo().getTeams() == null) return;
+
+        List<MatchBan> bans = riotMatch.getInfo().getTeams().stream()
+                .filter(t -> t.getBans() != null)
+                .flatMap(t -> t.getBans().stream())
+                .filter(b -> b.getChampionId() != null && b.getChampionId() > 0)
+                .map(b -> {
+                    String championName = dataDragonService.getChampionNameById(b.getChampionId());
+                    if (championName == null) return null;
+                    return MatchBan.builder()
+                            .matchId(matchId)
+                            .championName(championName)
+                            .build();
+                })
+                .filter(b -> b != null)
+                .collect(Collectors.toList());
+
+        if (!bans.isEmpty()) {
+            matchBanRepository.saveAll(bans);
+            log.debug("Saved {} bans for match: {}", bans.size(), matchId);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ChampionStatsResponse getChampionStats(String position) {
+        String pos = (position == null || position.isBlank()) ? null : position;
+        long totalMatches = matchRepository.countByPositionFilter(pos);
+        if (totalMatches == 0) {
+            return ChampionStatsResponse.builder()
+                    .champions(new ArrayList<>())
+                    .totalMatches(0)
+                    .build();
+        }
+
+        List<MatchRepository.ChampionStatsProjection> statsProjections = matchRepository.findChampionStats(pos);
+        List<MatchBanRepository.BanStatsProjection> banProjections = matchBanRepository.findBanStats();
+
+        java.util.Map<String, Long> banMap = banProjections.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        MatchBanRepository.BanStatsProjection::getChampionName,
+                        MatchBanRepository.BanStatsProjection::getBanCount
+                ));
+
+        List<ChampionStatsResponse.ChampionStat> champions = statsProjections.stream()
+                .map(p -> {
+                    long totalGames = p.getTotalGames();
+                    long wins = p.getWins() != null ? p.getWins() : 0;
+                    double winRate = round1((wins * 100.0) / totalGames);
+                    double pickRate = round1((totalGames * 100.0) / totalMatches);
+                    long banCount = banMap.getOrDefault(p.getChampionName(), 0L);
+                    double banRate = round1((banCount * 100.0) / totalMatches);
+                    double avgKills = round1(p.getAvgKills() != null ? p.getAvgKills() : 0);
+                    double avgDeaths = round1(p.getAvgDeaths() != null ? p.getAvgDeaths() : 0);
+                    double avgAssists = round1(p.getAvgAssists() != null ? p.getAvgAssists() : 0);
+
+                    return ChampionStatsResponse.ChampionStat.builder()
+                            .championName(p.getChampionName())
+                            .totalGames(totalGames)
+                            .winRate(winRate)
+                            .pickRate(pickRate)
+                            .banRate(banRate)
+                            .avgKills(avgKills)
+                            .avgDeaths(avgDeaths)
+                            .avgAssists(avgAssists)
+                            .tier(calculateTier(winRate))
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return ChampionStatsResponse.builder()
+                .champions(champions)
+                .totalMatches(totalMatches)
+                .build();
+    }
+
+    private double round1(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
+    private String calculateTier(double winRate) {
+        if (winRate >= 53) return "S";
+        if (winRate >= 51) return "A";
+        if (winRate >= 49) return "B";
+        if (winRate >= 47) return "C";
+        return "D";
     }
 
     private Double calculateKda(Integer kills, Integer deaths, Integer assists) {

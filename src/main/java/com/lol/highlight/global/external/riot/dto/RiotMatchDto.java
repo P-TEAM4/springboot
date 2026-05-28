@@ -61,6 +61,7 @@ public class RiotMatchDto {
         private Integer item6;
         private Boolean win;
         private Integer teamId;
+        private String teamPosition;
     }
 
     @Getter
@@ -70,6 +71,15 @@ public class RiotMatchDto {
         private Integer teamId;
         private Boolean win;
         private Objectives objectives;
+        private List<Ban> bans;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Ban {
+        private Integer championId;
+        private Integer pickTurn;
     }
 
     @Getter

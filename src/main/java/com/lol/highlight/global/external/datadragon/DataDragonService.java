@@ -70,6 +70,39 @@ public class DataDragonService {
     }
 
     /**
+     * championId → championName (영문 내부명) 변환
+     * championId = -1 이면 null 반환 (밴 없음)
+     */
+    public String getChampionNameById(Integer championId) {
+        if (championId == null || championId <= 0) return null;
+        Map<Integer, String> championMap = buildChampionIdMap();
+        return championMap.get(championId);
+    }
+
+    @Cacheable(value = "championIdMap")
+    public Map<Integer, String> buildChampionIdMap() {
+        try {
+            String version = getActiveVersion();
+            Map<String, Object> championsData = dataDragonClient.getChampions(version);
+            Map<String, Map<String, Object>> data =
+                    (Map<String, Map<String, Object>>) championsData.get("data");
+
+            Map<Integer, String> result = new java.util.HashMap<>();
+            for (Map.Entry<String, Map<String, Object>> entry : data.entrySet()) {
+                String internalName = (String) entry.getValue().get("id");
+                Object keyObj = entry.getValue().get("key");
+                if (keyObj != null) {
+                    result.put(Integer.parseInt(keyObj.toString()), internalName);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to build champion ID map", e);
+            return java.util.Collections.emptyMap();
+        }
+    }
+
+    /**
      * 특정 버전의 아이템 데이터를 캐싱하여 조회
      */
     @Cacheable(value = "itemsData", key = "#patchVersion")

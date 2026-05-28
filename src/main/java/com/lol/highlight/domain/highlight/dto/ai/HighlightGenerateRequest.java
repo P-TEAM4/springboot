@@ -15,5 +15,5 @@ public class HighlightGenerateRequest {
     private int topHighlights = 5;
 
     @Builder.Default
-    private int topMistakes = 3;
+    private int topMistakes = 5;
 }

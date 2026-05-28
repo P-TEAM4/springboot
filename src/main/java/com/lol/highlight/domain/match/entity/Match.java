@@ -59,13 +59,16 @@ public class Match extends BaseEntity {
     // 게임 버전 (패치 버전)
     private String gameVersion;
 
+    // 포지션 (TOP, JUNGLE, MID, ADC, SUPPORT)
+    private String position;
+
     @Builder
     public Match(String puuid, String matchId, String championName, Integer kills,
                 Integer deaths, Integer assists, Double kda, Boolean win,
                 Integer gameDuration, Long gameCreation, MatchStatus status,
                 String timelineData, String detailDataUrl,
                 Integer item0, Integer item1, Integer item2, Integer item3,
-                Integer item4, Integer item5, Integer item6, String gameVersion) {
+                Integer item4, Integer item5, Integer item6, String gameVersion, String position) {
         this.puuid = puuid;
         this.matchId = matchId;
         this.championName = championName;
@@ -87,6 +90,7 @@ public class Match extends BaseEntity {
         this.item5 = item5;
         this.item6 = item6;
         this.gameVersion = gameVersion;
+        this.position = position;
     }
 
     public void updateMatchData(String championName, Integer kills, Integer deaths,

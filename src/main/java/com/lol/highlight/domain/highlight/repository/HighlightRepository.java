@@ -17,6 +17,10 @@ public interface HighlightRepository extends JpaRepository<Highlight, Long> {
 
     Page<Highlight> findByMatch_MatchId(String matchId, Pageable pageable);
 
+    List<Highlight> findByMatch_MatchId(String matchId);
+
+    void deleteAllByMatch_MatchId(String matchId);
+
     List<Highlight> findByMatch_MatchIdAndStatus(String matchId, HighlightStatus status);
 
     @Query("SELECT h FROM Highlight h WHERE h.match.puuid = :puuid")

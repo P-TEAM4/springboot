@@ -86,7 +86,8 @@ public class AiHighlightClient {
                 Match match = matchRepository.findByMatchId(request.getMatchId())
                         .orElseThrow(() -> new IllegalArgumentException("Match not found: " + request.getMatchId()));
 
-                highlightRepository.deleteById(pendingHighlightId);
+                // 해당 매치의 기존 하이라이트 전체 삭제 후 새로 생성
+                highlightRepository.deleteAllByMatch_MatchId(request.getMatchId());
 
                 createHighlightsFromClips(match, response.getHighlights(), false);
                 createHighlightsFromClips(match, response.getMistakes(), true);

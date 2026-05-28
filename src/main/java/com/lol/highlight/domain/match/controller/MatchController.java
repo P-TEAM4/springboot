@@ -1,5 +1,6 @@
 package com.lol.highlight.domain.match.controller;
 
+import com.lol.highlight.domain.match.dto.ChampionStatsResponse;
 import com.lol.highlight.domain.match.dto.MatchDetailResponse;
 import com.lol.highlight.domain.match.dto.MatchResponse;
 import com.lol.highlight.domain.match.dto.MatchesWithProfileResponse;
@@ -104,6 +105,13 @@ public class MatchController {
             @Parameter(description = "매치 ID (예: KR_7951942780)", required = true) @PathVariable String matchId) {
         MatchDetailResponse detail = matchService.getMatchDetail(matchId);
         return ApiResponse.success(detail);
+    }
+
+    @Operation(summary = "챔피언 통계 조회", description = "DB에 쌓인 매치 데이터 기반으로 챔피언별 승률/픽률/밴률/KDA를 집계합니다.")
+    @GetMapping("/champion-stats")
+    public ApiResponse<ChampionStatsResponse> getChampionStats(
+            @Parameter(description = "포지션 필터 (TOP, JUNGLE, MID, ADC, SUPPORT)") @RequestParam(required = false) String position) {
+        return ApiResponse.success(matchService.getChampionStats(position));
     }
 
 }

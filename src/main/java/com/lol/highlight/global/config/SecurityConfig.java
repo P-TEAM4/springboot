@@ -45,7 +45,8 @@ public class SecurityConfig {
                         .requestMatchers("/", "/health", "/h2-console/**",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**",
                                 "/api/auth/google", "/api/auth/refresh", "/api/auth/test-token",
-                                "/oauth2/**", "/login/oauth2/**").permitAll()
+                                "/oauth2/**", "/login/oauth2/**",
+                                "/api/matches/champion-stats").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {

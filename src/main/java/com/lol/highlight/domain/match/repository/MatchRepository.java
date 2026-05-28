@@ -38,4 +38,24 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     // 모든 고유 puuid 조회
     @Query("SELECT DISTINCT m.puuid FROM Match m")
     java.util.List<String> findDistinctPuuids();
+
+    // 챔피언별 통계 집계 (position null이면 전체)
+    @Query("SELECT m.championName AS championName, COUNT(m) AS totalGames, " +
+           "SUM(CASE WHEN m.win = true THEN 1 ELSE 0 END) AS wins, " +
+           "AVG(m.kills) AS avgKills, AVG(m.deaths) AS avgDeaths, AVG(m.assists) AS avgAssists " +
+           "FROM Match m WHERE (:position IS NULL OR m.position = :position) " +
+           "GROUP BY m.championName ORDER BY COUNT(m) DESC")
+    java.util.List<ChampionStatsProjection> findChampionStats(@org.springframework.data.repository.query.Param("position") String position);
+
+    @Query("SELECT COUNT(m) FROM Match m WHERE (:position IS NULL OR m.position = :position)")
+    long countByPositionFilter(@org.springframework.data.repository.query.Param("position") String position);
+
+    interface ChampionStatsProjection {
+        String getChampionName();
+        Long getTotalGames();
+        Long getWins();
+        Double getAvgKills();
+        Double getAvgDeaths();
+        Double getAvgAssists();
+    }
 }

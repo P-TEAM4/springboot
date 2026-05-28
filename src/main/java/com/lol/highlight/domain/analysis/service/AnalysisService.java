@@ -113,11 +113,13 @@ public class AnalysisService {
     public AnalysisResponse createAnalysis(AnalysisCreateRequest request, User user) {
         String matchId = request.getMatchId();
 
-        if (analysisRepository.existsByMatch_MatchId(matchId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "Analysis already exists for this match");
-        }
-
         Match match = getOrFetchMatch(matchId, user);
+
+        // 기존 분석 있으면 삭제 후 재생성 (테스트용)
+        analysisRepository.findByMatch_MatchId(matchId).ifPresent(existing -> {
+            analysisRepository.delete(existing);
+            analysisRepository.flush();
+        });
 
         Analysis analysis = Analysis.builder()
                 .match(match)

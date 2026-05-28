@@ -44,6 +44,20 @@ public class DataDragonClient {
     }
 
     /**
+     * 특정 패치 버전의 챔피언 데이터 조회 (championId → championName 맵 생성용)
+     */
+    public Map<String, Object> getChampions(String patchVersion) {
+        String url = String.format("%s/%s/data/en_US/champion.json", baseUrl, patchVersion);
+        log.info("Fetching champion data from Data Dragon: patch={}", patchVersion);
+        try {
+            return restTemplate.getForObject(url, Map.class);
+        } catch (Exception e) {
+            log.error("Failed to fetch champion data from Data Dragon: patch={}", patchVersion, e);
+            throw new RuntimeException("Failed to fetch champion data from Data Dragon", e);
+        }
+    }
+
+    /**
      * 현재 최신 패치 버전 조회
      */
     public String getLatestVersion() {
