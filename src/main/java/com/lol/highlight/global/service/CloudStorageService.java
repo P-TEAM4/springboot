@@ -15,6 +15,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +37,9 @@ public class CloudStorageService {
 
     @Value("${gcp.storage.profile-image-prefix:profile-images}")
     private String profileImagePrefix;
+
+    @Value("${gcp.storage.enabled:true}")
+    private boolean storageEnabled;
 
     /**
      * 프로필 이미지 업로드
@@ -86,6 +92,19 @@ public class CloudStorageService {
     }
 
     public String uploadMatchData(String matchId, MatchDetailResponse matchDetail) {
+        if (!storageEnabled) {
+            try {
+                Path dir = Paths.get("./data/match-details");
+                Files.createDirectories(dir);
+                Path file = dir.resolve(matchId + ".csv");
+                Files.writeString(file, convertToCsv(matchDetail), StandardCharsets.UTF_8);
+                log.debug("[Dev] Match detail saved locally: {}", file.toAbsolutePath());
+                return "local://" + matchId;
+            } catch (IOException e) {
+                log.error("[Dev] Failed to save match detail locally for matchId: {}", matchId, e);
+                return null;
+            }
+        }
         try {
             // 게임 버전 추출 (예: 14.23.1.12345 -> 14.23)
             String gameVersion = extractPatchVersion(matchDetail.getGameVersion());
@@ -112,11 +131,18 @@ public class CloudStorageService {
 
     public CloudStorageResponse downloadMatchData(String detailDataUrl) {
         try {
-            String objectName = extractObjectNameFromUrl(detailDataUrl);
-            BlobId blobId = BlobId.of(bucketName, objectName);
-
-            byte[] data = storage.readAllBytes(blobId);
-            String csvData = new String(data, StandardCharsets.UTF_8);
+            String csvData;
+            if (detailDataUrl != null && detailDataUrl.startsWith("local://")) {
+                String matchId = detailDataUrl.substring("local://".length());
+                Path file = Paths.get("./data/match-details/" + matchId + ".csv");
+                csvData = Files.readString(file, StandardCharsets.UTF_8);
+                log.debug("[Dev] Match detail loaded from local file: {}", file.toAbsolutePath());
+            } else {
+                String objectName = extractObjectNameFromUrl(detailDataUrl);
+                BlobId blobId = BlobId.of(bucketName, objectName);
+                byte[] data = storage.readAllBytes(blobId);
+                csvData = new String(data, StandardCharsets.UTF_8);
+            }
 
             CloudStorageResponse storageResponse = parseCsv(csvData);
             log.info("Successfully downloaded match data from Cloud Storage: {}", detailDataUrl);

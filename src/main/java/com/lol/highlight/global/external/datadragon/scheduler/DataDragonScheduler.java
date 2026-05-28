@@ -20,8 +20,8 @@ public class DataDragonScheduler {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        log.info("Initializing Data Dragon version on application startup");
-        dataDragonService.initializeDataDragonVersion();
+        log.info("Updating Data Dragon version on application startup");
+        dataDragonService.updateDataDragonVersion();
     }
 
     /**

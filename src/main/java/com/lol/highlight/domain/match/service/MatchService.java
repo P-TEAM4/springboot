@@ -333,7 +333,9 @@ public class MatchService {
                             .totalDamageDealt(playerData.getTotalDamageDealt())
                             .visionScore(playerData.getVisionScore())
                             .cs(playerData.getCs())
-                            .finalItems(playerData.getFinalItems())
+                            .finalItems(playerData.getFinalItems().stream()
+                                    .filter(id -> id != null && id > 0)
+                                    .collect(Collectors.toList()))
                             .finalItemsInfo(itemInfoList)
                             .goldEarned(playerData.getGoldEarned())
                             .build();
@@ -517,10 +519,10 @@ public class MatchService {
     private MatchDetailResponse convertToMatchDetail(RiotMatchDto riotMatch) {
         List<MatchDetailResponse.PlayerDetail> players = riotMatch.getInfo().getParticipants().stream()
                 .map(p -> {
-                    List<Integer> finalItems = List.of(
+                    List<Integer> finalItems = java.util.Arrays.asList(
                             p.getItem0(), p.getItem1(), p.getItem2(),
                             p.getItem3(), p.getItem4(), p.getItem5(), p.getItem6()
-                    );
+                    ).stream().filter(id -> id != null && id > 0).collect(Collectors.toList());
 
                     return MatchDetailResponse.PlayerDetail.builder()
                             .playerName(p.getSummonerName())

@@ -42,6 +42,9 @@ public class SwaggerConfig {
     @Autowired
     private ApplicationContext applicationContext;
 
+    @Autowired
+    private org.springframework.core.env.Environment environment;
+
     @Bean
     public OpenAPI openAPI() {
         String jwtSchemeName = "JWT Token";
@@ -63,11 +66,19 @@ public class SwaggerConfig {
                         .contact(new Contact()
                                 .name("P-Team 4")
                                 .email("setiguy@gachon.ac.kr")))
-                .servers(List.of(
-                        new Server().url("https://nexus-gg.kro.kr").description("Production Server"),
-                        new Server().url("http://localhost:8080").description("Local Server")))
+                .servers(isDev()
+                        ? List.of(
+                                new Server().url("http://localhost:8080").description("Local Server"),
+                                new Server().url("https://nexus-gg.kro.kr").description("Production Server"))
+                        : List.of(
+                                new Server().url("https://nexus-gg.kro.kr").description("Production Server"),
+                                new Server().url("http://localhost:8080").description("Local Server")))
                 .addSecurityItem(securityRequirement)
                 .components(components);
+    }
+
+    private boolean isDev() {
+        return java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev");
     }
 
     @Bean

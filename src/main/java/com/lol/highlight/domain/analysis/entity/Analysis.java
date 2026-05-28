@@ -77,6 +77,10 @@ public class Analysis extends BaseEntity {
         this.status = AnalysisStatus.COMPLETED;
     }
 
+    public void updateAiModelData(String aiModelData) {
+        this.aiModelData = aiModelData;
+    }
+
     public void updateStatus(AnalysisStatus status) {
         this.status = status;
     }

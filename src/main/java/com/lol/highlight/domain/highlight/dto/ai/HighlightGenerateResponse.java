@@ -1,39 +1,56 @@
 package com.lol.highlight.domain.highlight.dto.ai;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * FastAPI 하이라이트 영상 생성 응답 DTO
- *
- * TODO: [FastAPI 연동]
- * FastAPI 서버의 실제 응답 형식에 맞게 수정 필요
- */
+import java.util.List;
+import java.util.Map;
+
 @Getter
-@Builder
 @NoArgsConstructor
-@AllArgsConstructor
 public class HighlightGenerateResponse {
 
-    /**
-     * 생성된 영상 URL
-     */
-    private String videoUrl;
+    @JsonProperty("match_id")
+    private String matchId;
 
-    /**
-     * 썸네일 URL
-     */
-    private String thumbnailUrl;
+    private Map<String, String> player;
 
-    /**
-     * 처리 상태
-     */
-    private String status;
+    @JsonProperty("video_path")
+    private String videoPath;
 
-    /**
-     * 오류 메시지 (실패 시)
-     */
-    private String errorMessage;
+    @JsonProperty("total_clips")
+    private Integer totalClips;
+
+    private List<ClipInfo> highlights;
+
+    private List<ClipInfo> mistakes;
+
+    @Getter
+    @NoArgsConstructor
+    public static class ClipInfo {
+
+        @JsonProperty("clip_path")
+        private String clipPath;
+
+        private Double timestamp;
+
+        private String type;
+
+        @JsonProperty("base_importance")
+        private Double baseImportance;
+
+        @JsonProperty("impact_score")
+        private Double impactScore;
+
+        @JsonProperty("combined_importance")
+        private Double combinedImportance;
+
+        private String description;
+
+        @JsonProperty("impact_description")
+        private String impactDescription;
+
+        private Map<String, Object> details;
+    }
 }

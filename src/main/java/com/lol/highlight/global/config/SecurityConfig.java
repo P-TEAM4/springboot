@@ -43,7 +43,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/health", "/h2-console/**",
-                                "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**",
+                                "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**",
                                 "/api/auth/google", "/api/auth/refresh", "/api/auth/test-token",
                                 "/oauth2/**", "/login/oauth2/**").permitAll()
                         .anyRequest().authenticated())

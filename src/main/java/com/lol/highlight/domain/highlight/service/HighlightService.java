@@ -8,6 +8,7 @@ import com.lol.highlight.domain.highlight.enums.HighlightStatus;
 import com.lol.highlight.domain.highlight.repository.HighlightRepository;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;
+import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -16,14 +17,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-/**
- * 하이라이트 관리 서비스
- *
- * TODO: [FastAPI 연동]
- * AiHighlightClient를 통해 FastAPI 서버와 통신합니다.
- * 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
- */
+import java.io.IOException;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -52,64 +49,53 @@ public class HighlightService {
 
     /**
      * 하이라이트를 생성합니다.
-     * PENDING 상태로 저장 후 FastAPI 서버에 비동기 영상 생성 요청을 보냅니다.
-     *
-     * TODO: [FastAPI 연동]
-     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
-     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
+     * PENDING 상태로 저장 후 영상과 함께 FastAPI에 비동기로 전송.
+     * FastAPI 응답의 클립 목록으로 PENDING 레코드를 대체합니다.
      */
     @Transactional
-    public HighlightResponse createHighlight(HighlightCreateRequest request) {
+    public HighlightResponse createHighlight(HighlightCreateRequest request,
+                                              MultipartFile video,
+                                              User user) {
+        if (user.getSummonerName() == null || user.getTagLine() == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
+                    "Riot 계정이 연동되지 않았습니다. 먼저 Riot 계정을 연동해주세요.");
+        }
+
         Match match = matchRepository.findByMatchId(request.getMatchId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
-        Integer duration = request.getEndTime() - request.getStartTime();
-
-        Highlight highlight = Highlight.builder()
+        Highlight pending = Highlight.builder()
                 .match(match)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .duration(duration)
                 .type(request.getType())
                 .status(HighlightStatus.PENDING)
                 .build();
 
-        highlight = highlightRepository.save(highlight);
+        pending = highlightRepository.save(pending);
 
-        // FastAPI 서버에 비동기로 하이라이트 영상 생성 요청
-        HighlightGenerateRequest generateRequest = HighlightGenerateRequest.builder()
-                .matchId(match.getMatchId())
-                .highlightId(highlight.getId())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .puuid(match.getPuuid())
-                .build();
+        try {
+            byte[] videoBytes = video.getBytes();
+            String filename = video.getOriginalFilename() != null
+                    ? video.getOriginalFilename() : "video.mp4";
 
-        aiHighlightClient.requestHighlightGeneration(highlight.getId(), generateRequest);
-        log.info("Highlight creation initiated for match: {}, highlightId: {}",
-                request.getMatchId(), highlight.getId());
+            HighlightGenerateRequest generateRequest = HighlightGenerateRequest.builder()
+                    .matchId(match.getMatchId())
+                    .gameName(user.getSummonerName())
+                    .tagLine(user.getTagLine())
+                    .build();
 
-        return HighlightResponse.from(highlight);
-    }
+            aiHighlightClient.requestHighlightGeneration(pending.getId(), videoBytes, filename, generateRequest);
+            log.info("Highlight generation requested for match: {}, pendingId: {}",
+                    request.getMatchId(), pending.getId());
 
-    /**
-     * AI를 통해 매치의 주요 장면을 자동으로 분석하여 하이라이트를 생성합니다.
-     *
-     * TODO: [FastAPI 연동]
-     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
-     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
-     * - AI가 킬/타워/오브젝트 등 주요 장면을 자동 추출합니다.
-     */
-    @Transactional
-    public void generateAutoHighlights(String matchId) {
-        Match match = matchRepository.findByMatchId(matchId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        } catch (IOException e) {
+            pending.updateStatus(HighlightStatus.FAILED);
+            highlightRepository.save(pending);
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "영상 파일을 읽을 수 없습니다.");
+        }
 
-        // FastAPI 서버에 비동기로 자동 하이라이트 추출 요청
-        aiHighlightClient.requestAutoHighlightGeneration(matchId);
-        log.info("Auto highlight generation initiated for match: {}", matchId);
+        return HighlightResponse.from(pending);
     }
 
     @Transactional
@@ -123,9 +109,7 @@ public class HighlightService {
     public HighlightResponse incrementViewCount(Long id) {
         Highlight highlight = highlightRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.HIGHLIGHT_NOT_FOUND));
-
         highlight.incrementViewCount();
-
         return HighlightResponse.from(highlight);
     }
 }

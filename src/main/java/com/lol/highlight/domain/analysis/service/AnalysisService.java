@@ -2,7 +2,7 @@ package com.lol.highlight.domain.analysis.service;
 
 import com.lol.highlight.domain.analysis.dto.AnalysisCreateRequest;
 import com.lol.highlight.domain.analysis.dto.AnalysisResponse;
-import com.lol.highlight.domain.analysis.dto.ai.GapAnalysisRequest;
+import com.lol.highlight.domain.analysis.dto.ai.AnalysisGenerateRequest;
 import com.lol.highlight.domain.analysis.entity.Analysis;
 import com.lol.highlight.domain.analysis.enums.AnalysisStatus;
 import com.lol.highlight.domain.analysis.repository.AnalysisRepository;
@@ -76,7 +76,7 @@ public class AnalysisService {
 
         // FastAPI 서버에 비동기로 분석 요청
         String tier = (user.getTier() != null) ? user.getTier() : "UNRANKED";
-        requestAiAnalysis(analysis.getId(), match, tier);
+        requestAiAnalysis(analysis.getId(), match, tier, user.getSummonerName(), user.getTagLine());
         log.info("Analysis auto-created and requested for match ID: {}, analysis ID: {}",
                 matchId, analysis.getId());
 
@@ -128,32 +128,23 @@ public class AnalysisService {
 
         // 비동기로 AI 서버에 분석 요청
         String tier = (user.getTier() != null) ? user.getTier() : "UNRANKED";
-        requestAiAnalysis(analysis.getId(), match, tier);
+        requestAiAnalysis(analysis.getId(), match, tier, user.getSummonerName(), user.getTagLine());
         log.info("Analysis creation initiated for match: {}", matchId);
 
         return AnalysisResponse.from(analysis);
     }
 
-    /**
-     * FastAPI 서버에 AI 분석 요청을 보냅니다.
-     *
-     * TODO: [FastAPI 연동]
-     * - 현재 임시 URL(localhost:8000)로 설정되어 있습니다.
-     * - FastAPI 서버 배포 후 환경변수로 URL 설정 필요
-     */
-    private void requestAiAnalysis(Long analysisId, Match match, String tier) {
-        String puuid = match.getPuuid();
-        // tier가 null인 경우 기본값 사용
-        String userTier = (tier != null) ? tier : "UNRANKED";
-
-        GapAnalysisRequest aiRequest = GapAnalysisRequest.builder()
+    private void requestAiAnalysis(Long analysisId, Match match, String tier, String gameName, String tagLine) {
+        AnalysisGenerateRequest aiRequest = AnalysisGenerateRequest.builder()
                 .matchId(match.getMatchId())
-                .puuid(puuid)
-                .tier(userTier)
+                .puuid(match.getPuuid())
+                .gameName(gameName)
+                .tagLine(tagLine)
+                .tier((tier != null) ? tier : "UNRANKED")
                 .build();
 
-        aiAnalysisClient.requestGapAnalysis(analysisId, aiRequest);
-        log.info("AI analysis request sent for analysis ID: {}, matchId: {}, tier: {}", analysisId, match.getMatchId(), userTier);
+        aiAnalysisClient.requestAnalysis(analysisId, aiRequest);
+        log.info("AI analysis request sent for analysis ID: {}, matchId: {}", analysisId, match.getMatchId());
     }
 
     @Transactional

@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.nio.file.AccessDeniedException;
@@ -76,6 +77,16 @@ public class GlobalExceptionHandler {
     protected ApiResponse<?> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
         log.error("AccessDeniedException", e);
         return ApiResponse.error(ErrorCode.ACCESS_DENIED, request.getRequestURI());
+    }
+
+    @ExceptionHandler(HttpClientErrorException.class)
+    protected ApiResponse<?> handleHttpClientErrorException(HttpClientErrorException e, HttpServletRequest request) {
+        if (e.getStatusCode().value() == 404) {
+            log.warn("Riot API 404: {}", e.getMessage());
+            return ApiResponse.error(HttpStatus.NOT_FOUND.value(), "E404", "소환사를 찾을 수 없습니다.", request.getRequestURI());
+        }
+        log.error("Riot API 오류: {}", e.getMessage());
+        return ApiResponse.error(ErrorCode.EXTERNAL_API_ERROR, request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
