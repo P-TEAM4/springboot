@@ -74,31 +74,37 @@ public class AiAnalysisClient {
         GapAnalysisResponse gap = response.getGapAnalysis();
 
         String strengthAnalysis = gap != null && gap.getStrengths() != null
-                ? String.join("\n", gap.getStrengths()) : "";
+                ? String.join(" | ", gap.getStrengths()) : "";
         String weaknessAnalysis = gap != null && gap.getWeaknesses() != null
-                ? String.join("\n", gap.getWeaknesses()) : "";
+                ? String.join(" | ", gap.getWeaknesses()) : "";
         String improvementSuggestions = gap != null && gap.getRecommendations() != null
-                ? String.join("\n", gap.getRecommendations()) : "";
+                ? String.join(" | ", gap.getRecommendations()) : "";
 
         Double impactScore = response.getImpactScore();
 
-        Map<String, Object> playerStats = response.getPlayerStats();
-        Double teamFightScore = extractDouble(playerStats, "damage_share", "damage_dealt");
-        Double farmingScore = extractDouble(playerStats, "cs_per_min", "cs");
-        Double visionScore = extractDouble(playerStats, "vision_score", "vision_score_per_min");
-        Double objectiveControlScore = extractDouble(playerStats, "gold_per_min", "gold");
+        // normalizedGaps(티어 대비 %)를 0-100 점수로 변환: 50 + (gap * 0.5), clamp 0-100
+        Map<String, Double> normalizedGaps = gap != null ? gap.getNormalizedGaps() : null;
+        Double teamFightScore = normalizeGap(normalizedGaps, "damage_share");
+        Double farmingScore   = normalizeGap(normalizedGaps, "cs_per_min");
+        Double visionScore    = normalizeGap(normalizedGaps, "vision_score_per_min");
+        Double objectiveControlScore = normalizeGap(normalizedGaps, "gold_per_min");
 
-        // summary + top_features를 aiModelData(JSON)에 저장
+        // overallScore는 FastAPI gap_analyzer가 이미 0-100으로 계산한 값 사용
+        Double overallScore = gap != null ? gap.getOverallScore() : null;
+
+        // aiModelData: 챔피언, 역할, 요약, 승률 변화 등 부가 정보
         String aiModelData = null;
         try {
-            aiModelData = objectMapper.writeValueAsString(Map.of(
-                    "summary", response.getSummary() != null ? response.getSummary() : "",
-                    "topFeatures", response.getTopFeatures() != null ? response.getTopFeatures() : java.util.List.of(),
-                    "champion", response.getChampion() != null ? response.getChampion() : "",
-                    "role", response.getRole() != null ? response.getRole() : "",
-                    "baselineProba", response.getBaselineProba() != null ? response.getBaselineProba() : 0.0,
-                    "predictedProba", response.getPredictedProba() != null ? response.getPredictedProba() : 0.0
-            ));
+            java.util.Map<String, Object> extra = new java.util.LinkedHashMap<>();
+            extra.put("champion", response.getChampion() != null ? response.getChampion() : "");
+            extra.put("role", response.getRole() != null ? response.getRole() : "");
+            extra.put("win", response.getWin() != null ? response.getWin() : false);
+            extra.put("summary", response.getSummary() != null ? response.getSummary() : "");
+            extra.put("baselineProba", response.getBaselineProba() != null ? response.getBaselineProba() : 0.0);
+            extra.put("predictedProba", response.getPredictedProba() != null ? response.getPredictedProba() : 0.0);
+            extra.put("overallScore", overallScore != null ? overallScore : 0.0);
+            extra.put("topFeatures", response.getTopFeatures() != null ? response.getTopFeatures() : java.util.List.of());
+            aiModelData = objectMapper.writeValueAsString(extra);
         } catch (Exception e) {
             log.warn("Failed to serialize aiModelData for analysis ID: {}", analysisId, e);
         }
@@ -121,15 +127,11 @@ public class AiAnalysisClient {
         analysisRepository.save(analysis);
     }
 
-    private Double extractDouble(Map<String, Object> stats, String... keys) {
-        if (stats == null) return null;
-        for (String key : keys) {
-            if (stats.containsKey(key)) {
-                Object val = stats.get(key);
-                if (val instanceof Number) return ((Number) val).doubleValue();
-            }
-        }
-        return null;
+    /** normalizedGaps의 % 값을 0-100 점수로 변환 (50 = 티어 평균) */
+    private Double normalizeGap(Map<String, Double> normalizedGaps, String key) {
+        if (normalizedGaps == null || !normalizedGaps.containsKey(key)) return null;
+        double pct = normalizedGaps.get(key);
+        return Math.max(0.0, Math.min(100.0, 50.0 + pct * 0.5));
     }
 
     private void handleConnectionError(Long analysisId, ResourceAccessException e) {

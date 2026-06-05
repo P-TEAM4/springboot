@@ -19,6 +19,7 @@ public class AnalysisResponse {
     private ScoreData scores;
     private AnalysisStatus status;
     private LocalDateTime createdAt;
+    private String aiModelData;
 
     @Getter
     @Builder
@@ -56,6 +57,7 @@ public class AnalysisResponse {
                         .build())
                 .status(analysis.getStatus())
                 .createdAt(analysis.getCreatedAt())
+                .aiModelData(analysis.getAiModelData())
                 .build();
     }
 

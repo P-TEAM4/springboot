@@ -19,6 +19,7 @@ import com.lol.highlight.global.exception.ErrorCode;
 import com.lol.highlight.global.external.riot.client.RiotApiClient;
 import com.lol.highlight.global.external.riot.dto.RiotLeagueDto;
 import com.lol.highlight.global.external.riot.dto.RiotMatchDto;
+import com.lol.highlight.global.external.riot.dto.RiotMatchTimelineDto;
 import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
 import com.lol.highlight.global.service.CloudStorageService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -526,27 +531,70 @@ public class MatchService {
     }
 
     private MatchDetailResponse convertToMatchDetail(RiotMatchDto riotMatch) {
-        List<MatchDetailResponse.PlayerDetail> players = riotMatch.getInfo().getParticipants().stream()
-                .map(p -> {
-                    List<Integer> finalItems = java.util.Arrays.asList(
-                            p.getItem0(), p.getItem1(), p.getItem2(),
-                            p.getItem3(), p.getItem4(), p.getItem5(), p.getItem6()
-                    ).stream().filter(id -> id != null && id > 0).collect(Collectors.toList());
+        String matchId = riotMatch.getMetadata().getMatchId();
 
-                    return MatchDetailResponse.PlayerDetail.builder()
-                            .playerName(p.getSummonerName())
-                            .championName(p.getChampionName())
-                            .kills(p.getKills())
-                            .deaths(p.getDeaths())
-                            .assists(p.getAssists())
-                            .totalDamageDealt(p.getTotalDamageDealtToChampions())
-                            .visionScore(p.getVisionScore())
-                            .cs(p.getTotalMinionsKilled() + p.getNeutralMinionsKilled())
-                            .finalItems(finalItems)
-                            .goldEarned(p.getGoldEarned())
-                            .build();
-                })
-                .collect(Collectors.toList());
+        Map<Integer, List<MatchDetailResponse.ItemBuild>> itemBuildsMap = new HashMap<>();
+        Map<Integer, List<Integer>> skillBuildsMap = new HashMap<>();
+
+        try {
+            RiotMatchTimelineDto timeline = riotApiClient.getMatchTimeline(matchId);
+            if (timeline != null && timeline.getInfo() != null && timeline.getInfo().getFrames() != null) {
+                for (RiotMatchTimelineDto.Frame frame : timeline.getInfo().getFrames()) {
+                    if (frame.getEvents() == null) continue;
+                    for (RiotMatchTimelineDto.Event event : frame.getEvents()) {
+                        Integer pid = event.getParticipantId();
+                        if (pid == null) continue;
+                        if ("ITEM_PURCHASED".equals(event.getType()) && event.getItemId() != null) {
+                            itemBuildsMap.computeIfAbsent(pid, k -> new ArrayList<>())
+                                    .add(MatchDetailResponse.ItemBuild.builder()
+                                            .itemId(event.getItemId())
+                                            .timestamp(event.getTimestamp())
+                                            .build());
+                        } else if ("SKILL_LEVEL_UP".equals(event.getType()) && event.getSkillSlot() != null) {
+                            skillBuildsMap.computeIfAbsent(pid, k -> new ArrayList<>())
+                                    .add(event.getSkillSlot());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch timeline for match {}: {}", matchId, e.getMessage());
+        }
+
+        List<RiotMatchDto.Participant> participants = riotMatch.getInfo().getParticipants();
+        List<MatchDetailResponse.PlayerDetail> players = new ArrayList<>();
+        for (int i = 0; i < participants.size(); i++) {
+            RiotMatchDto.Participant p = participants.get(i);
+            int participantId = i + 1;
+
+            List<Integer> finalItems = java.util.Arrays.asList(
+                    p.getItem0(), p.getItem1(), p.getItem2(),
+                    p.getItem3(), p.getItem4(), p.getItem5(), p.getItem6()
+            ).stream().filter(id -> id != null && id > 0).collect(Collectors.toList());
+
+            List<MatchDetailResponse.ItemBuild> itemBuild = itemBuildsMap
+                    .getOrDefault(participantId, Collections.emptyList())
+                    .stream()
+                    .sorted(Comparator.comparingLong(MatchDetailResponse.ItemBuild::getTimestamp))
+                    .collect(Collectors.toList());
+
+            List<Integer> skillBuild = skillBuildsMap.getOrDefault(participantId, Collections.emptyList());
+
+            players.add(MatchDetailResponse.PlayerDetail.builder()
+                    .playerName(p.getSummonerName())
+                    .championName(p.getChampionName())
+                    .kills(p.getKills())
+                    .deaths(p.getDeaths())
+                    .assists(p.getAssists())
+                    .totalDamageDealt(p.getTotalDamageDealtToChampions())
+                    .visionScore(p.getVisionScore())
+                    .cs(p.getTotalMinionsKilled() + p.getNeutralMinionsKilled())
+                    .finalItems(finalItems)
+                    .goldEarned(p.getGoldEarned())
+                    .itemBuild(itemBuild)
+                    .skillBuild(skillBuild)
+                    .build());
+        }
 
         List<MatchDetailResponse.TeamDetail> teams = riotMatch.getInfo().getTeams().stream()
                 .map(t -> {

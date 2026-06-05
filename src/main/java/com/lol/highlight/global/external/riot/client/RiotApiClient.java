@@ -2,6 +2,7 @@ package com.lol.highlight.global.external.riot.client;
 
 import com.lol.highlight.global.external.riot.dto.RiotLeagueDto;
 import com.lol.highlight.global.external.riot.dto.RiotMatchDto;
+import com.lol.highlight.global.external.riot.dto.RiotMatchTimelineDto;
 import com.lol.highlight.global.external.riot.dto.RiotSummonerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -111,6 +112,21 @@ public class RiotApiClient {
                 HttpMethod.GET,
                 createHttpEntity(),
                 RiotMatchDto.class
+        );
+
+        return response.getBody();
+    }
+
+    public RiotMatchTimelineDto getMatchTimeline(String matchId) {
+        String url = String.format("%s/lol/match/v5/matches/%s/timeline", asiaUrl, matchId);
+
+        log.info("Fetching match timeline: {}", matchId);
+
+        ResponseEntity<RiotMatchTimelineDto> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                createHttpEntity(),
+                RiotMatchTimelineDto.class
         );
 
         return response.getBody();

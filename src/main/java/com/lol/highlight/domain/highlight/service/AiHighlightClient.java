@@ -1,5 +1,6 @@
 package com.lol.highlight.domain.highlight.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lol.highlight.domain.highlight.dto.ai.HighlightGenerateRequest;
 import com.lol.highlight.domain.highlight.dto.ai.HighlightGenerateResponse;
 import com.lol.highlight.domain.highlight.entity.Highlight;
@@ -34,16 +35,19 @@ public class AiHighlightClient {
     private final RestTemplate restTemplate;
     private final HighlightRepository highlightRepository;
     private final MatchRepository matchRepository;
+    private final ObjectMapper objectMapper;
 
     private static final String HIGHLIGHT_GENERATE_ENDPOINT = "/api/v1/highlights/generate";
 
     public AiHighlightClient(
             @Qualifier("aiRestTemplate") RestTemplate restTemplate,
             HighlightRepository highlightRepository,
-            MatchRepository matchRepository) {
+            MatchRepository matchRepository,
+            ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.highlightRepository = highlightRepository;
         this.matchRepository = matchRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -118,14 +122,29 @@ public class AiHighlightClient {
             Integer startTime = clip.getTimestamp() != null ? clip.getTimestamp().intValue() : null;
             String prefix = isMistake ? "[실수] " : "[하이라이트] ";
 
+            String eventData = null;
+            try {
+                java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+                data.put("baseImportance", clip.getBaseImportance());
+                data.put("impactScore", clip.getImpactScore());
+                data.put("combinedImportance", clip.getCombinedImportance());
+                data.put("eventType", clip.getType());
+                if (clip.getDetails() != null) data.put("details", clip.getDetails());
+                eventData = objectMapper.writeValueAsString(data);
+            } catch (Exception e) {
+                log.warn("Failed to serialize eventData for clip: {}", clip.getDescription());
+            }
+
             Highlight highlight = Highlight.builder()
                     .match(match)
                     .title(prefix + clip.getDescription())
                     .description(clip.getImpactDescription())
                     .videoUrl(clip.getClipPath())
                     .startTime(startTime)
+                    .duration(15)
                     .type(resolveHighlightType(clip.getType()))
                     .status(HighlightStatus.COMPLETED)
+                    .eventData(eventData)
                     .build();
 
             highlightRepository.save(highlight);

@@ -28,6 +28,15 @@ public class MatchDetailResponse {
         private List<Integer> finalItems;
         private List<ItemInfo> finalItemsInfo;
         private Integer goldEarned;
+        private List<ItemBuild> itemBuild;
+        private List<Integer> skillBuild;
+    }
+
+    @Getter
+    @Builder
+    public static class ItemBuild {
+        private Integer itemId;
+        private Long timestamp;
     }
 
     @Getter
