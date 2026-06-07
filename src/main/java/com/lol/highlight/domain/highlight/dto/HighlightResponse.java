@@ -26,6 +26,7 @@ public class HighlightResponse {
     private Integer viewCount;
     private LocalDateTime createdAt;
     private String eventData;
+    private String coaching;
 
     public static HighlightResponse from(Highlight highlight) {
         return HighlightResponse.builder()
@@ -43,6 +44,7 @@ public class HighlightResponse {
                 .viewCount(highlight.getViewCount())
                 .createdAt(highlight.getCreatedAt())
                 .eventData(highlight.getEventData())
+                .coaching(highlight.getCoaching())
                 .build();
     }
 }

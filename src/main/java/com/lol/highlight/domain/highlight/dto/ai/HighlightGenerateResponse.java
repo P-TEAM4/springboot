@@ -51,6 +51,8 @@ public class HighlightGenerateResponse {
         @JsonProperty("impact_description")
         private String impactDescription;
 
+        private String coaching;
+
         private Map<String, Object> details;
     }
 }

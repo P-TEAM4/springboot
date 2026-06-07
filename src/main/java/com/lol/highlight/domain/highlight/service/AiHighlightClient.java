@@ -145,6 +145,7 @@ public class AiHighlightClient {
                     .type(resolveHighlightType(clip.getType()))
                     .status(HighlightStatus.COMPLETED)
                     .eventData(eventData)
+                    .coaching(clip.getCoaching())
                     .build();
 
             highlightRepository.save(highlight);

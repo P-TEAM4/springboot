@@ -45,13 +45,16 @@ public class Highlight extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String eventData;
 
+    @Column(columnDefinition = "TEXT")
+    private String coaching;
+
     private Integer viewCount;
 
     @Builder
     public Highlight(Match match, String title, String description, String videoUrl,
                     String thumbnailUrl, Integer startTime, Integer endTime,
                     Integer duration, HighlightType type, HighlightStatus status,
-                    String eventData) {
+                    String eventData, String coaching) {
         this.match = match;
         this.title = title;
         this.description = description;
@@ -63,6 +66,7 @@ public class Highlight extends BaseEntity {
         this.type = type;
         this.status = status != null ? status : HighlightStatus.PENDING;
         this.eventData = eventData;
+        this.coaching = coaching;
         this.viewCount = 0;
     }
 
