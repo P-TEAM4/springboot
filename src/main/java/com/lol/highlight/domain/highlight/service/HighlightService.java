@@ -8,6 +8,7 @@ import com.lol.highlight.domain.highlight.enums.HighlightStatus;
 import com.lol.highlight.domain.highlight.repository.HighlightRepository;
 import com.lol.highlight.domain.match.entity.Match;
 import com.lol.highlight.domain.match.repository.MatchRepository;
+import com.lol.highlight.domain.match.service.MatchService;
 import com.lol.highlight.domain.user.entity.User;
 import com.lol.highlight.global.exception.BusinessException;
 import com.lol.highlight.global.exception.ErrorCode;
@@ -29,6 +30,7 @@ public class HighlightService {
 
     private final HighlightRepository highlightRepository;
     private final MatchRepository matchRepository;
+    private final MatchService matchService;
     private final AiHighlightClient aiHighlightClient;
 
     public HighlightResponse getHighlightById(Long id) {
@@ -61,8 +63,14 @@ public class HighlightService {
                     "Riot 계정이 연동되지 않았습니다. 먼저 Riot 계정을 연동해주세요.");
         }
 
-        Match match = matchRepository.findByMatchId(request.getMatchId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        Match match;
+        try {
+            match = matchService.fetchAndSaveMatch(user.getPuuid(), request.getMatchId());
+        } catch (Exception e) {
+            log.warn("Failed to fetch match {} from Riot API, trying local DB: {}", request.getMatchId(), e.getMessage());
+            match = matchRepository.findByMatchId(request.getMatchId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        }
 
         Highlight pending = Highlight.builder()
                 .match(match)
@@ -83,6 +91,7 @@ public class HighlightService {
                     .matchId(match.getMatchId())
                     .gameName(user.getSummonerName())
                     .tagLine(user.getTagLine())
+                    .gameStartOffset(request.getGameStartOffset() != null ? request.getGameStartOffset() : 0.0)
                     .build();
 
             aiHighlightClient.requestHighlightGeneration(pending.getId(), videoBytes, filename, generateRequest);
@@ -96,6 +105,40 @@ public class HighlightService {
         }
 
         return HighlightResponse.from(pending);
+    }
+
+    @Transactional
+    public void autoGenerateHighlights(String matchId, User user) {
+        if (user.getSummonerName() == null || user.getTagLine() == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE,
+                    "Riot 계정이 연동되지 않았습니다. 먼저 Riot 계정을 연동해주세요.");
+        }
+
+        Match match;
+        try {
+            match = matchService.fetchAndSaveMatch(user.getPuuid(), matchId);
+        } catch (Exception e) {
+            log.warn("Failed to fetch match {} from Riot API, trying local DB: {}", matchId, e.getMessage());
+            match = matchRepository.findByMatchId(matchId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        }
+
+        Highlight pending = Highlight.builder()
+                .match(match)
+                .title(matchId + " 하이라이트")
+                .type(com.lol.highlight.domain.highlight.enums.HighlightType.CUSTOM)
+                .status(HighlightStatus.PENDING)
+                .build();
+        pending = highlightRepository.save(pending);
+
+        HighlightGenerateRequest generateRequest = HighlightGenerateRequest.builder()
+                .matchId(matchId)
+                .gameName(user.getSummonerName())
+                .tagLine(user.getTagLine())
+                .build();
+
+        aiHighlightClient.requestHighlightGenerationWithoutVideo(pending.getId(), generateRequest);
+        log.info("Auto highlight generation requested for match: {}, pendingId: {}", matchId, pending.getId());
     }
 
     @Transactional

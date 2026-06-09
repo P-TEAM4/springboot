@@ -16,4 +16,7 @@ public class HighlightGenerateRequest {
 
     @Builder.Default
     private int topMistakes = 5;
+
+    @Builder.Default
+    private double gameStartOffset = 0.0;
 }

@@ -18,4 +18,6 @@ public class HighlightCreateRequest {
     private String description;
 
     private HighlightType type;
+
+    private Double gameStartOffset;
 }

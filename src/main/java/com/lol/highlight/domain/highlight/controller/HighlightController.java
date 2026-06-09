@@ -77,6 +77,20 @@ public class HighlightController {
         return ApiResponse.success(highlightService.createHighlight(request, video, user));
     }
 
+    @Operation(summary = "AI 자동 하이라이트 생성", description = "매치 ID를 기반으로 AI가 자동으로 하이라이트를 추출합니다. (비동기 처리)")
+    @ApiErrorExamples({
+            ErrorCode.MATCH_NOT_FOUND,
+            ErrorCode.INVALID_INPUT_VALUE,
+            ErrorCode.AUTHENTICATION_REQUIRED
+    })
+    @PostMapping("/match/{matchId}/auto-generate")
+    public ApiResponse<Void> autoGenerateHighlights(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "Riot 매치 ID", required = true) @PathVariable String matchId) {
+        highlightService.autoGenerateHighlights(matchId, user);
+        return ApiResponse.success();
+    }
+
     @Operation(summary = "하이라이트 조회수 증가", description = "하이라이트의 조회수를 1 증가시킵니다.")
     @ApiErrorExamples({
             ErrorCode.HIGHLIGHT_NOT_FOUND

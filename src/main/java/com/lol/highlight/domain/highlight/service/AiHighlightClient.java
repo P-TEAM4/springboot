@@ -75,6 +75,7 @@ public class AiHighlightClient {
             body.add("tag_line", request.getTagLine());
             body.add("top_highlights", String.valueOf(request.getTopHighlights()));
             body.add("top_mistakes", String.valueOf(request.getTopMistakes()));
+            body.add("game_start_offset", String.valueOf(request.getGameStartOffset()));
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
@@ -90,13 +91,80 @@ public class AiHighlightClient {
                 Match match = matchRepository.findByMatchId(request.getMatchId())
                         .orElseThrow(() -> new IllegalArgumentException("Match not found: " + request.getMatchId()));
 
-                // 해당 매치의 기존 하이라이트 전체 삭제 후 새로 생성
+                // COMPLETED 클립이 없을 때만 생성 (중복 방지)
+                List<com.lol.highlight.domain.highlight.entity.Highlight> existing =
+                        highlightRepository.findByMatch_MatchIdAndStatus(request.getMatchId(), HighlightStatus.COMPLETED);
+                if (existing.isEmpty()) {
+                    createHighlightsFromClips(match, response.getHighlights(), false);
+                    createHighlightsFromClips(match, response.getMistakes(), true);
+                } else {
+                    log.info("Completed highlights already exist for match: {}, skipping re-generation", request.getMatchId());
+                }
+
+                // PENDING → COMPLETED (프론트 폴링이 성공하도록)
+                highlightRepository.findByMatch_MatchIdAndStatus(request.getMatchId(), HighlightStatus.PENDING)
+                        .forEach(h -> {
+                            h.updateStatus(HighlightStatus.COMPLETED);
+                            highlightRepository.save(h);
+                        });
+
+                log.info("Highlight generation completed. highlights={}, mistakes={} for match: {}",
+                        response.getHighlights().size(),
+                        response.getMistakes() != null ? response.getMistakes().size() : 0,
+                        request.getMatchId());
+            } else {
+                markHighlightFailed(pendingHighlightId, "AI 서버로부터 빈 응답을 받았습니다");
+            }
+
+        } catch (ResourceAccessException e) {
+            handleConnectionError(pendingHighlightId, e);
+        } catch (RestClientException e) {
+            handleRestClientError(pendingHighlightId, e);
+        } catch (Exception e) {
+            handleUnexpectedError(pendingHighlightId, e);
+        }
+    }
+
+    @Async
+    @Transactional
+    public void requestHighlightGenerationWithoutVideo(Long pendingHighlightId,
+                                                        HighlightGenerateRequest request) {
+        log.info("Requesting auto highlight generation (no video) for match: {}, game: {}#{}",
+                request.getMatchId(), request.getGameName(), request.getTagLine());
+
+        try {
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("video", new ByteArrayResource(new byte[0]) {
+                @Override
+                public String getFilename() { return "empty.mp4"; }
+            });
+            body.add("match_id", request.getMatchId());
+            body.add("game_name", request.getGameName());
+            body.add("tag_line", request.getTagLine());
+            body.add("top_highlights", String.valueOf(request.getTopHighlights()));
+            body.add("top_mistakes", String.valueOf(request.getTopMistakes()));
+            body.add("game_start_offset", String.valueOf(request.getGameStartOffset()));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            HighlightGenerateResponse response = restTemplate.postForObject(
+                    HIGHLIGHT_GENERATE_ENDPOINT,
+                    requestEntity,
+                    HighlightGenerateResponse.class
+            );
+
+            if (response != null && response.getHighlights() != null) {
+                Match match = matchRepository.findByMatchId(request.getMatchId())
+                        .orElseThrow(() -> new IllegalArgumentException("Match not found: " + request.getMatchId()));
+
                 highlightRepository.deleteAllByMatch_MatchId(request.getMatchId());
 
                 createHighlightsFromClips(match, response.getHighlights(), false);
                 createHighlightsFromClips(match, response.getMistakes(), true);
 
-                log.info("Highlight generation completed. highlights={}, mistakes={} for match: {}",
+                log.info("Auto highlight generation completed. highlights={}, mistakes={} for match: {}",
                         response.getHighlights().size(),
                         response.getMistakes() != null ? response.getMistakes().size() : 0,
                         request.getMatchId());
