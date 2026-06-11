@@ -104,6 +104,15 @@ public class AiAnalysisClient {
             extra.put("predictedProba", response.getPredictedProba() != null ? response.getPredictedProba() : 0.0);
             extra.put("overallScore", overallScore != null ? overallScore : 0.0);
             extra.put("topFeatures", response.getTopFeatures() != null ? response.getTopFeatures() : java.util.List.of());
+            // Gemini 경기분석 단계별 코칭
+            GapAnalysisResponse gap2 = response.getGapAnalysis();
+            if (gap2 != null) {
+                extra.put("coachingSummary",    gap2.getCoachingSummary()    != null ? gap2.getCoachingSummary()    : "");
+                extra.put("coachingEarlyGame",  gap2.getCoachingEarlyGame()  != null ? gap2.getCoachingEarlyGame()  : "");
+                extra.put("coachingMidGame",    gap2.getCoachingMidGame()    != null ? gap2.getCoachingMidGame()    : "");
+                extra.put("coachingLateGame",   gap2.getCoachingLateGame()   != null ? gap2.getCoachingLateGame()   : "");
+                extra.put("coachingKeyPattern", gap2.getCoachingKeyPattern() != null ? gap2.getCoachingKeyPattern() : "");
+            }
             aiModelData = objectMapper.writeValueAsString(extra);
         } catch (Exception e) {
             log.warn("Failed to serialize aiModelData for analysis ID: {}", analysisId, e);

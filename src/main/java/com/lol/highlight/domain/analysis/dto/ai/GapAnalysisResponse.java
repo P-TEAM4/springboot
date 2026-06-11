@@ -32,4 +32,19 @@ public class GapAnalysisResponse {
     private List<String> weaknesses;
 
     private List<String> recommendations;
+
+    @JsonProperty("coaching_summary")
+    private String coachingSummary;
+
+    @JsonProperty("coaching_early_game")
+    private String coachingEarlyGame;
+
+    @JsonProperty("coaching_mid_game")
+    private String coachingMidGame;
+
+    @JsonProperty("coaching_late_game")
+    private String coachingLateGame;
+
+    @JsonProperty("coaching_key_pattern")
+    private String coachingKeyPattern;
 }

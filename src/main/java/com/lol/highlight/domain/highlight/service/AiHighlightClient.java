@@ -91,18 +91,18 @@ public class AiHighlightClient {
                 Match match = matchRepository.findByMatchId(request.getMatchId())
                         .orElseThrow(() -> new IllegalArgumentException("Match not found: " + request.getMatchId()));
 
-                // 실제 클립(videoUrl 있는 것)이 없을 때만 생성 (PENDING 플레이스홀더는 제외)
+                // 기존 COMPLETED 클립 삭제 후 재생성 (덮어쓰기)
                 List<com.lol.highlight.domain.highlight.entity.Highlight> existing =
                         highlightRepository.findByMatch_MatchIdAndStatus(request.getMatchId(), HighlightStatus.COMPLETED)
                                 .stream()
                                 .filter(h -> h.getVideoUrl() != null && !h.getVideoUrl().isEmpty())
                                 .toList();
-                if (existing.isEmpty()) {
-                    createHighlightsFromClips(match, response.getHighlights(), false);
-                    createHighlightsFromClips(match, response.getMistakes(), true);
-                } else {
-                    log.info("Completed highlights already exist for match: {}, skipping re-generation", request.getMatchId());
+                if (!existing.isEmpty()) {
+                    highlightRepository.deleteAll(existing);
+                    log.info("Deleted {} existing completed highlights for match: {}", existing.size(), request.getMatchId());
                 }
+                createHighlightsFromClips(match, response.getHighlights(), false);
+                createHighlightsFromClips(match, response.getMistakes(), true);
 
                 // PENDING → COMPLETED (프론트 폴링이 성공하도록)
                 highlightRepository.findByMatch_MatchIdAndStatus(request.getMatchId(), HighlightStatus.PENDING)
