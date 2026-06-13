@@ -131,3 +131,5 @@ replay_pid*
 /test-results/
 /coverage/
 *.coverage
+.omc/
+.claude/
