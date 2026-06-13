@@ -133,3 +133,4 @@ replay_pid*
 *.coverage
 .omc/
 .claude/
+src/main/resources/application-dev.yml
